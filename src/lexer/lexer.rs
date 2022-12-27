@@ -1,9 +1,5 @@
 use std::{io::{self, Read, BufReader, BufRead}};
 
-pub enum LexerError {
-    IoError(io::Error)
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     Name(String),
