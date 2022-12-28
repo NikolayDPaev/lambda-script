@@ -58,6 +58,7 @@ pub enum UnaryOp {
 
 pub enum Expression {
     Value(Value),
+    Name(String),
     FunctionCall {
         args: Vec<Box<Expression>>,
     },
