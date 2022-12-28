@@ -18,6 +18,12 @@ pub enum Token {
     LeftBoxBracket,
     RightBoxBracket,
     NonPure,
+    Cons,
+    Left,
+    Right,
+    Nil,
+    Read,
+    Print,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -117,6 +123,18 @@ impl Line {
                     tokens.push(Token::Else);
                 } else if string == "nonpure" {
                     tokens.push(Token::NonPure);
+                } else if string == "cons" {
+                    tokens.push(Token::Cons);
+                } else if string == "left" {
+                    tokens.push(Token::Left);
+                } else if string == "right" {
+                    tokens.push(Token::Right);
+                } else if string == "nil" {
+                    tokens.push(Token::Nil);
+                } else if string == "read" {
+                    tokens.push(Token::Read);
+                } else if string == "print" {
+                    tokens.push(Token::Print);
                 } else {
                     tokens.push(Token::Name(string));
                 }
@@ -219,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_all_lexemes_line() {
-        let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / * ** % == < > <= >= if else then = -> ( ) , [ ] nonpure";
+        let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / * ** % == < > <= >= if else then = -> ( ) , [ ] nonpure cons left right nil read print";
         let lines = lines(lexemes.as_bytes()).collect::<Vec<_>>();
         assert_eq!(lines.len(), 1);
         let line = lines[0].as_ref().unwrap();
@@ -258,7 +276,13 @@ mod tests {
             Token::Comma,
             Token::LeftBoxBracket,
             Token::RightBoxBracket,
-            Token::NonPure];
+            Token::NonPure,
+            Token::Cons,
+            Token::Left,
+            Token::Right,
+            Token::Nil,
+            Token::Read,
+            Token::Print];
 
         assert_eq_vec!(line.tokens, expected);
     }
@@ -346,6 +370,34 @@ mod tests {
         assert_eq!(lines[2].as_ref().unwrap().tabs, 0);
         assert_eq_vec!(lines[2].as_ref().unwrap().tokens, vec![
             Token::Name(String::from("prod")),
+        ]);
+    }
+
+    #[test]
+    fn test_cons() {
+        let input = "  list=cons(1, cons(2, cons(3, nil)))";
+        let lines = lines(input.as_bytes()).collect::<Vec<_>>();
+        assert_eq!(lines[0].as_ref().unwrap().spaces, 2);
+        assert_eq!(lines[0].as_ref().unwrap().tabs, 0);
+        assert_eq_vec!(lines[0].as_ref().unwrap().tokens, vec![
+            Token::Name(String::from("list")),
+            Token::Assignment,
+            Token::Cons,
+            Token::LeftBracket,
+            Token::Number(String::from("1")),
+            Token::Comma,
+            Token::Cons,
+            Token::LeftBracket,
+            Token::Number(String::from("2")),
+            Token::Comma,
+            Token::Cons,
+            Token::LeftBracket,
+            Token::Number(String::from("3")),
+            Token::Comma,
+            Token::Nil,
+            Token::RightBracket,
+            Token::RightBracket,
+            Token::RightBracket,
         ]);
     }
 }
