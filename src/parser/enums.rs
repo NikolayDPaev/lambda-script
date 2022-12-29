@@ -1,3 +1,8 @@
+pub struct Scope {
+    pub assignments: Vec<(String, Expression)>,
+    pub expression: Expression,
+}
+
 pub enum Number {
     Float(f64),
     Integer(i32),
@@ -43,7 +48,6 @@ pub enum CmpBinOp {
 }
 
 pub enum BinaryOp {
-    Cons,
     Boolean(BoolBinOp),
     Number(NumberBinOp),
     Compare(CmpBinOp),
@@ -52,23 +56,24 @@ pub enum BinaryOp {
 pub enum UnaryOp {
     Negation,
     Minus,
-    Left,
-    Right,
 }
 
 pub enum Expression {
     Value(Value),
     Name(String),
     FunctionCall {
-        args: Vec<Box<Expression>>,
+        args: Vec<Expression>,
     },
     ReadCall,
     PrintCall(Box<Expression>),
+    Cons(Box<Expression>,Box<Expression>),
+    Left(Box<Expression>),
+    Right(Box<Expression>),
     UnaryOperation(UnaryOp, Box<Expression>),
     BinaryOperation(BinaryOp, Box<Expression>, Box<Expression>),
     If {
         condition: Box<Expression>,
-        then_expression: Box<Expression>,
-        else_expression: Box<Expression>,
+        then_scope: Box<Scope>,
+        else_scope: Box<Scope>,
     }
 }
