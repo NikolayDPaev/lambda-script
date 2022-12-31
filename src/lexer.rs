@@ -1,6 +1,6 @@
 use std::io::{self, BufRead, BufReader, Read};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
     Name(String),
     Str(String),
@@ -26,7 +26,7 @@ pub enum Token {
     Print,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Op {
     And,
     Or,

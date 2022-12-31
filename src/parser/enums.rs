@@ -19,8 +19,7 @@ pub enum Value {
     Function {
         pure: bool,
         args: Vec<String>,
-        assignments: Vec<(String, Expression)>,
-        returns: Box<Expression>,
+        scope: Box<Scope>,
     }
 }
 

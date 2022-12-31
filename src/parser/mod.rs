@@ -41,6 +41,25 @@ pub enum ParserError {
     CharParseError {
         line: u32,
     },
+    FunctionExpected {
+        line: u32,
+    },
+    NameExpected {
+        line: u32,
+    },
+    ArrowExpected {
+        line: u32,
+    },
+    LeftBracketExpected {
+        line: u32,
+    },
+    ThenExpected {
+        line: u32,
+    },
+    UnexpectedToken {
+        line: u32,
+        token: Token,
+    },
 }
 
 fn parse_binary_operation(
@@ -72,15 +91,22 @@ fn parse_number(string: &str, line_num: u32) -> Result<Expression, ParserError> 
     }
 }
 
-fn parse_args_list(tokens: &mut Peekable<Iter<Token>>, line_num: u32) -> Result<Vec<Expression>, ParserError> {
+fn parse_args_list(
+    tokens: &mut Peekable<Iter<Token>>,
+    line_num: u32,
+    next_lines: &mut Peekable<LinesIterator>,
+    indentation: u16,
+) -> Result<Vec<Expression>, ParserError> {
     let mut vec = vec![];
-    
+
     loop {
-        let token = tokens.next().ok_or(ParserError::UnexpectedEndOfLine{line: line_num})?;
+        let token = tokens
+            .next()
+            .ok_or(ParserError::UnexpectedEndOfLine { line: line_num })?;
         match token {
             Token::RightBracket => return Ok(vec),
             _ => {
-                let expr = parse_expression(tokens, line_num)?;
+                let expr = parse_expression(tokens, line_num, next_lines, indentation)?;
                 vec.push(expr);
                 if let Some(Token::Comma) = tokens.peek() {
                     tokens.next().unwrap();
@@ -93,19 +119,61 @@ fn parse_args_list(tokens: &mut Peekable<Iter<Token>>, line_num: u32) -> Result<
     }
 }
 
+fn parse_param_list(tokens: &mut Peekable<Iter<Token>>,
+    line_num: u32,
+) -> Result<Vec<String>, ParserError> {
+    let mut vec = vec![];
+
+    loop {
+        let token = tokens
+            .next()
+            .ok_or(ParserError::UnexpectedEndOfLine { line: line_num })?;
+        match token {
+            Token::RightBracket => return Ok(vec),
+            Token::Name(string) => {
+                vec.push(string.clone());
+                if let Some(Token::Comma) = tokens.peek() {
+                    tokens.next().unwrap();
+                    continue
+                } else {
+                    return Err(ParserError::CommaExpected { line: line_num })
+                };
+            },
+            _ => return Err(ParserError::NameExpected { line: line_num })
+        };
+    }
+}
+
+// macro_rules! parse_builtin_unary_function {
+//     ($function:expr, $tokens:expr, $line_num:expr) => {
+//         match $tokens.next() {
+//             Some(Token::LeftBracket) => (),
+//             _ => return Err(ParserError::LeftBracketExpected { line: $line_num }),
+//         };
+//         let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+//         match $tokens.next() {
+//             Some(Token::RightBracket) => (),
+//             _ => return Err(ParserError::UnbalancedBracketsError { line: $line_num }),
+//         };
+//         Expression::$function(expr)
+//     };
+// }
+
 fn parse_expression(
     tokens: &mut Peekable<Iter<Token>>,
     line_num: u32,
+    next_lines: &mut Peekable<LinesIterator>,
+    indentation: u16,
 ) -> Result<Expression, ParserError> {
     let token = tokens
         .next()
         .ok_or(ParserError::ExpressionExpected { line: line_num })?;
     let expr = match token {
         Token::Name(string) => {
-            if let Some(Token::LeftBracket) = tokens.peek() {                
+            if let Some(Token::LeftBracket) = tokens.peek() {
                 tokens.next().unwrap();
-                let expr_vec = parse_args_list(tokens, line_num)?;
-                Expression::FunctionCall { args: expr_vec }            
+                let expr_vec = parse_args_list(tokens, line_num, next_lines, indentation)?;
+                Expression::FunctionCall { args: expr_vec }
             } else {
                 Expression::Name(string.to_string())
             }
@@ -114,22 +182,103 @@ fn parse_expression(
         Token::Str(string) => Expression::Value(parse_string(string)),
         Token::Char(string) => {
             if string.len() != 1 {
-                return Err(ParserError::CharParseError { line: line_num })
+                return Err(ParserError::CharParseError { line: line_num });
             } else {
                 Expression::Value(Value::Char(string.chars().next().unwrap()))
             }
         }
+        Token::Nil => Expression::Value(Value::Nil),
+        Token::Cons => {
+            match tokens.next() {
+                Some(Token::LeftBracket) => (),
+                _ => return Err(ParserError::LeftBracketExpected { line: line_num }),
+            };
+            let expr_1 = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            match tokens.next() {
+                Some(Token::Comma) => (),
+                _ => return Err(ParserError::CommaExpected { line: line_num }),
+            };
+            let expr_2 = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            match tokens.next() {
+                Some(Token::RightBracket) => (),
+                _ => return Err(ParserError::UnbalancedBracketsError { line: line_num }),
+            };
+            Expression::Cons(expr_1, expr_2)
+        }
+        Token::Left => {
+            match tokens.next() {
+                Some(Token::LeftBracket) => (),
+                _ => return Err(ParserError::LeftBracketExpected { line: line_num }),
+            };
+            let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            match tokens.next() {
+                Some(Token::RightBracket) => (),
+                _ => return Err(ParserError::UnbalancedBracketsError { line: line_num }),
+            };
+            Expression::Left(expr)
+        }
+        Token::Right => {
+            match tokens.next() {
+                Some(Token::LeftBracket) => (),
+                _ => return Err(ParserError::LeftBracketExpected { line: line_num }),
+            };
+            let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            match tokens.next() {
+                Some(Token::RightBracket) => (),
+                _ => return Err(ParserError::UnbalancedBracketsError { line: line_num }),
+            };
+            Expression::Right(expr)
+        }
+        Token::Print => {
+            match tokens.next() {
+                Some(Token::LeftBracket) => (),
+                _ => return Err(ParserError::LeftBracketExpected { line: line_num }),
+            };
+            let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            match tokens.next() {
+                Some(Token::RightBracket) => (),
+                _ => return Err(ParserError::UnbalancedBracketsError { line: line_num }),
+            };
+            Expression::PrintCall(expr)
+        }
+        Token::Read => Expression::ReadCall,
         Token::NonPure => {
-            // TODO: call recursively and match if it is a function
+            let function_expr = parse_expression(tokens, line_num, next_lines, indentation)?;
+            match function_expr {
+                Expression::Value(Value::Function {
+                    pure,
+                    args,
+                    scope
+                }) => Expression::Value(Value::Function {
+                    pure: true,
+                    args,
+                    scope
+                }),
+                _ => return Err(ParserError::FunctionExpected { line: line_num }),
+            }
         }
         Token::LeftBoxBracket => {
-            // TODO: parse function
+            let params = parse_param_list(tokens, line_num)?;
+            match tokens.next() {
+                Some(Token::Arrow) => (),
+                _ => return Err(ParserError::ArrowExpected { line: line_num }),
+            };
+            let scope = Box::new(parse_scope(next_lines, indentation)?);
+            Expression::Value(Value::Function { pure: true, args: params, scope })
         }
+        // TODO: Think about the nested scopes !!!!!!!!!!
         Token::If => {
-
+            let condition = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            let then_scope = Box::new(parse_scope(next_lines, indentation)?);
+            match tokens.next() {
+                Some(Token::Else) => (),
+                _ => return Err(ParserError::ThenExpected { line: line_num }),
+            };
+            let else_scope = Box::new(parse_scope(next_lines, indentation)?);
+            Expression::If { condition, then_scope, else_scope }
         }
         Token::LeftBracket => {
-            let expr = parse_expression(tokens, line_num)?;
+            let expr = parse_expression(tokens, line_num, next_lines, indentation)?;
 
             let next_token = tokens
                 .next()
@@ -140,11 +289,12 @@ fn parse_expression(
             }
             expr
         }
+        token => return Err(ParserError::UnexpectedToken { line: line_num, token: token.clone() }),
     };
 
-    if let Some(Token::Operation(op)) = tokens.peek() {        
+    if let Some(Token::Operation(op)) = tokens.peek() {
         tokens.next().unwrap();
-        let expr_2 = parse_expression(tokens, line_num)?;
+        let expr_2 = parse_expression(tokens, line_num, next_lines, indentation)?;
         parse_binary_operation(op, expr, expr_2)
     } else {
         Ok(expr)
@@ -157,7 +307,7 @@ enum FunctionLine {
     Empty,
 }
 
-fn parse_line(line: &Line) -> Result<FunctionLine, ParserError> {
+fn parse_line(line: &Line, next_lines: &mut Peekable<LinesIterator>, indentation: u16) -> Result<FunctionLine, ParserError> {
     let tokens = &line.tokens;
 
     if tokens.len() == 0 {
@@ -168,7 +318,7 @@ fn parse_line(line: &Line) -> Result<FunctionLine, ParserError> {
         match &tokens[0] {
             Token::Name(string) => {
                 let mut iter = tokens[2..].iter().peekable();
-                let expression = parse_expression(&mut iter, line.number)?;
+                let expression = parse_expression(&mut iter, line.number, next_lines, indentation)?;
                 Ok(FunctionLine::Assignment(string.clone(), expression))
             }
             _ => Err(ParserError::AssignmentError {
@@ -178,7 +328,7 @@ fn parse_line(line: &Line) -> Result<FunctionLine, ParserError> {
         }
     } else {
         let mut iter = tokens.iter().peekable();
-        parse_expression(&mut iter, line.number).map(|exp| FunctionLine::Expression(exp))
+        parse_expression(&mut iter, line.number, next_lines, indentation).map(|exp| FunctionLine::Expression(exp))
     }
 }
 
@@ -186,8 +336,10 @@ fn handle_line(
     line: &Line,
     expression: &mut Option<Expression>,
     assignments: &mut Vec<(String, Expression)>,
+    next_lines: &mut Peekable<LinesIterator>,
+    indentation: u16,
 ) -> Result<(), ParserError> {
-    match parse_line(line)? {
+    match parse_line(line, next_lines, indentation)? {
         FunctionLine::Expression(exp) => match expression {
             Some(_) => {
                 return Err(ParserError::ReturnExpressionError {
@@ -235,7 +387,7 @@ fn parse_scope(
         });
     }
 
-    handle_line(&line, &mut expression, &mut assignments)?;
+    handle_line(&line, &mut expression, &mut assignments,  lines, scope_indentation)?;
 
     while let Some(line_result) = lines.peek() {
         let next_line = line_result.as_ref().map_err(|_| ParserError::PeekError)?;
@@ -257,7 +409,7 @@ fn parse_scope(
                 .unwrap()
                 .map_err(|err| ParserError::LexerError(err))?;
 
-            handle_line(&line, &mut expression, &mut assignments)?
+            handle_line(&line, &mut expression, &mut assignments, lines, scope_indentation)?
         }
     }
 
