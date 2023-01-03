@@ -7,6 +7,8 @@ pub enum Token {
     Char(String),
     Number(String),
     Operation(Op),
+    True,
+    False,
     If,
     Else,
     Then,
@@ -120,6 +122,10 @@ impl Line {
                     tokens.push(Token::Then);
                 } else if string == "else" {
                     tokens.push(Token::Else);
+                } else if string == "true" {
+                    tokens.push(Token::True);
+                } else if string == "false" {
+                    tokens.push(Token::False);
                 } else if string == "nonpure" {
                     tokens.push(Token::NonPure);
                 } else if string == "cons" {
@@ -246,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_all_lexemes_line() {
-        let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / * ** % == < > <= >= if else then = -> ( ) , [ ] nonpure cons left right nil read print";
+        let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / * ** % == < > <= >= true false if else then = -> ( ) , [ ] nonpure cons left right nil read print";
         let lines = lines(lexemes.as_bytes()).collect::<Vec<_>>();
         assert_eq!(lines.len(), 1);
         let line = lines[0].as_ref().unwrap();
@@ -275,6 +281,8 @@ mod tests {
             Token::Operation(Op::Gt),
             Token::Operation(Op::LEq),
             Token::Operation(Op::GEq),
+            Token::True,
+            Token::False,
             Token::If,
             Token::Else,
             Token::Then,

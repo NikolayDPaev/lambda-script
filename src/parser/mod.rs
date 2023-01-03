@@ -1,81 +1,62 @@
 mod enums;
+mod errors;
+mod tests;
 use std::iter::Peekable;
 use std::slice::Iter;
 
 use crate::lexer::*;
 use crate::parser::enums::*;
+use crate::parser::errors::*;
 
-pub enum ParserError {
-    PeekError,
-    LexerError(std::io::Error),
-    IndentationError {
-        line: u32,
-        msg: String,
-        expected: u16,
-        actual: u16,
-    },
-    ExpressionExpected {
-        line: u32,
-    },
-    CommaExpected {
-        line: u32,
-    },
-    UnexpectedEOF,
-    UnexpectedEndOfLine {
-        line: u32,
-    },
-    ReturnExpressionError {
-        line: u32,
-        msg: String,
-    },
-    AssignmentError {
-        line: u32,
-        msg: String,
-    },
-    UnbalancedBracketsError {
-        line: u32,
-    },
-    NumberParseError {
-        line: u32,
-    },
-    CharParseError {
-        line: u32,
-    },
-    FunctionExpected {
-        line: u32,
-    },
-    NameExpected {
-        line: u32,
-    },
-    ArrowExpected {
-        line: u32,
-    },
-    LeftBracketExpected {
-        line: u32,
-    },
-    ThenExpected {
-        line: u32,
-    },
-    UnexpectedToken {
-        line: u32,
-        token: Token,
-    },
+macro_rules! new_binary_operation {
+    ($op:expr, $expr_1:expr, $expr_2:expr) => {
+        Expression::BinaryOperation($op, Box::new($expr_1), Box::new($expr_2))
+    };
 }
 
 fn parse_binary_operation(
     op: &Op,
     expr_1: Expression,
     expr_2: Expression,
+    line_num: u32,
 ) -> Result<Expression, ParserError> {
-    todo!();
+    Ok(match op {
+        Op::And => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::And), expr_1, expr_2),
+        Op::Or => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::Or), expr_1, expr_2),
+        Op::Xor => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::Xor), expr_1, expr_2),
+        Op::Plus => new_binary_operation!(BinaryOp::Number(NumberBinOp::Plus), expr_1, expr_2),
+        Op::Minus => new_binary_operation!(BinaryOp::Number(NumberBinOp::Minus), expr_1, expr_2),
+        Op::Division => {
+            new_binary_operation!(BinaryOp::Number(NumberBinOp::Division), expr_1, expr_2)
+        }
+        Op::Multiplication => new_binary_operation!(
+            BinaryOp::Number(NumberBinOp::Multiplication),
+            expr_1,
+            expr_2
+        ),
+        Op::Exponentiation => new_binary_operation!(
+            BinaryOp::Number(NumberBinOp::Exponentiation),
+            expr_1,
+            expr_2
+        ),
+        Op::Modulo => new_binary_operation!(BinaryOp::Number(NumberBinOp::Modulo), expr_1, expr_2),
+        Op::Eq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Eq), expr_1, expr_2),
+        Op::Lt => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Lt), expr_1, expr_2),
+        Op::Gt => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Gt), expr_1, expr_2),
+        Op::LEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::LEq), expr_1, expr_2),
+        Op::GEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::GEq), expr_1, expr_2),
+        Op::Negation => return Err(ParserError::OpError { line: line_num }),
+    })
 }
 
-fn parse_string(string: &str) -> Value {
+fn parse_string(string: &str) -> Expression {
     if string.len() == 0 {
-        Value::Nil
+        Expression::Value(Value::Nil)
     } else {
-        Value::Tuple(
-            Box::new(Value::Char(string.chars().next().unwrap())),
+        Expression::Cons(
+            Box::new(Expression::Value(Value::Char(
+                string.chars().next().unwrap(),
+            ))),
             Box::new(parse_string(&string[1..string.len()])),
         )
     }
@@ -101,25 +82,31 @@ fn parse_args_list(
 
     loop {
         let token = tokens
-            .next()
+            .peek()
             .ok_or(ParserError::UnexpectedEndOfLine { line: line_num })?;
+
         match token {
-            Token::RightBracket => return Ok(vec),
+            Token::RightBracket => {
+                tokens.next().unwrap();
+                return Ok(vec);
+            }
             _ => {
                 let expr = parse_expression(tokens, line_num, next_lines, indentation)?;
                 vec.push(expr);
-                if let Some(Token::Comma) = tokens.peek() {
-                    tokens.next().unwrap();
-                    continue;
-                } else {
-                    return Err(ParserError::CommaExpected { line: line_num });
-                }
+                match tokens.peek() {
+                    Some(Token::Comma) => {
+                        tokens.next().unwrap();
+                    }
+                    Some(Token::RightBracket) => (),
+                    _ => return Err(ParserError::CommaExpected { line: line_num }),
+                };
             }
         };
     }
 }
 
-fn parse_param_list(tokens: &mut Peekable<Iter<Token>>,
+fn parse_param_list(
+    tokens: &mut Peekable<Iter<Token>>,
     line_num: u32,
 ) -> Result<Vec<String>, ParserError> {
     let mut vec = vec![];
@@ -129,35 +116,30 @@ fn parse_param_list(tokens: &mut Peekable<Iter<Token>>,
             .next()
             .ok_or(ParserError::UnexpectedEndOfLine { line: line_num })?;
         match token {
-            Token::RightBracket => return Ok(vec),
+            Token::RightBoxBracket => return Ok(vec),
             Token::Name(string) => {
                 vec.push(string.clone());
-                if let Some(Token::Comma) = tokens.peek() {
-                    tokens.next().unwrap();
-                    continue
-                } else {
-                    return Err(ParserError::CommaExpected { line: line_num })
+                match tokens.peek() {
+                    Some(Token::Comma) => {
+                        tokens.next().unwrap();
+                    }
+                    Some(Token::RightBoxBracket) => (),
+                    _ => return Err(ParserError::CommaExpected { line: line_num }),
                 };
-            },
-            _ => return Err(ParserError::NameExpected { line: line_num })
+            }
+            _ => return Err(ParserError::NameExpected { line: line_num }),
         };
     }
 }
 
-// macro_rules! parse_builtin_unary_function {
-//     ($function:expr, $tokens:expr, $line_num:expr) => {
-//         match $tokens.next() {
-//             Some(Token::LeftBracket) => (),
-//             _ => return Err(ParserError::LeftBracketExpected { line: $line_num }),
-//         };
-//         let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
-//         match $tokens.next() {
-//             Some(Token::RightBracket) => (),
-//             _ => return Err(ParserError::UnbalancedBracketsError { line: $line_num }),
-//         };
-//         Expression::$function(expr)
-//     };
-// }
+macro_rules! assert_next_token {
+    ($tokens:expr, $token:pat, $error:expr) => {
+        match $tokens.next() {
+            Some($token) => (),
+            _ => return Err($error),
+        };
+    };
+}
 
 fn parse_expression(
     tokens: &mut Peekable<Iter<Token>>,
@@ -173,13 +155,16 @@ fn parse_expression(
             if let Some(Token::LeftBracket) = tokens.peek() {
                 tokens.next().unwrap();
                 let expr_vec = parse_args_list(tokens, line_num, next_lines, indentation)?;
-                Expression::FunctionCall { args: expr_vec }
+                Expression::FunctionCall {
+                    name: string.clone(),
+                    args: expr_vec,
+                }
             } else {
                 Expression::Name(string.to_string())
             }
         }
         Token::Number(string) => parse_number(string, line_num)?,
-        Token::Str(string) => Expression::Value(parse_string(string)),
+        Token::Str(string) => parse_string(string),
         Token::Char(string) => {
             if string.len() != 1 {
                 return Err(ParserError::CharParseError { line: line_num });
@@ -187,115 +172,171 @@ fn parse_expression(
                 Expression::Value(Value::Char(string.chars().next().unwrap()))
             }
         }
+        Token::True => Expression::Value(Value::Boolean(true)),
+        Token::False => Expression::Value(Value::Boolean(false)),
+        Token::Operation(Op::Minus) => {
+            let expr = parse_expression(tokens, line_num, next_lines, indentation)?;
+            Expression::UnaryOperation(UnaryOp::Minus, Box::new(expr))
+        }
+        Token::Operation(Op::Negation) => {
+            let expr = parse_expression(tokens, line_num, next_lines, indentation)?;
+            Expression::UnaryOperation(UnaryOp::Negation, Box::new(expr))
+        }
         Token::Nil => Expression::Value(Value::Nil),
         Token::Cons => {
-            match tokens.next() {
-                Some(Token::LeftBracket) => (),
-                _ => return Err(ParserError::LeftBracketExpected { line: line_num }),
-            };
+            assert_next_token!(
+                tokens,
+                Token::LeftBracket,
+                ParserError::LeftBracketExpected { line: line_num }
+            );
             let expr_1 = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
-            match tokens.next() {
-                Some(Token::Comma) => (),
-                _ => return Err(ParserError::CommaExpected { line: line_num }),
-            };
+            assert_next_token!(
+                tokens,
+                Token::Comma,
+                ParserError::CommaExpected { line: line_num }
+            );
             let expr_2 = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
-            match tokens.next() {
-                Some(Token::RightBracket) => (),
-                _ => return Err(ParserError::UnbalancedBracketsError { line: line_num }),
-            };
+            assert_next_token!(
+                tokens,
+                Token::RightBracket,
+                ParserError::UnbalancedBracketsError { line: line_num }
+            );
             Expression::Cons(expr_1, expr_2)
         }
         Token::Left => {
-            match tokens.next() {
-                Some(Token::LeftBracket) => (),
-                _ => return Err(ParserError::LeftBracketExpected { line: line_num }),
-            };
+            assert_next_token!(
+                tokens,
+                Token::LeftBracket,
+                ParserError::LeftBracketExpected { line: line_num }
+            );
             let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
-            match tokens.next() {
-                Some(Token::RightBracket) => (),
-                _ => return Err(ParserError::UnbalancedBracketsError { line: line_num }),
-            };
+            assert_next_token!(
+                tokens,
+                Token::RightBracket,
+                ParserError::UnbalancedBracketsError { line: line_num }
+            );
             Expression::Left(expr)
         }
         Token::Right => {
-            match tokens.next() {
-                Some(Token::LeftBracket) => (),
-                _ => return Err(ParserError::LeftBracketExpected { line: line_num }),
-            };
+            assert_next_token!(
+                tokens,
+                Token::LeftBracket,
+                ParserError::LeftBracketExpected { line: line_num }
+            );
             let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
-            match tokens.next() {
-                Some(Token::RightBracket) => (),
-                _ => return Err(ParserError::UnbalancedBracketsError { line: line_num }),
-            };
+            assert_next_token!(
+                tokens,
+                Token::RightBracket,
+                ParserError::UnbalancedBracketsError { line: line_num }
+            );
             Expression::Right(expr)
         }
         Token::Print => {
-            match tokens.next() {
-                Some(Token::LeftBracket) => (),
-                _ => return Err(ParserError::LeftBracketExpected { line: line_num }),
-            };
+            assert_next_token!(
+                tokens,
+                Token::LeftBracket,
+                ParserError::LeftBracketExpected { line: line_num }
+            );
             let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
-            match tokens.next() {
-                Some(Token::RightBracket) => (),
-                _ => return Err(ParserError::UnbalancedBracketsError { line: line_num }),
-            };
+            assert_next_token!(
+                tokens,
+                Token::RightBracket,
+                ParserError::UnbalancedBracketsError { line: line_num }
+            );
             Expression::PrintCall(expr)
         }
         Token::Read => Expression::ReadCall,
         Token::NonPure => {
             let function_expr = parse_expression(tokens, line_num, next_lines, indentation)?;
             match function_expr {
-                Expression::Value(Value::Function {
-                    pure,
-                    args,
-                    scope
-                }) => Expression::Value(Value::Function {
-                    pure: true,
-                    args,
-                    scope
-                }),
+                Expression::Value(Value::Function { pure: _, params, scope }) => {
+                    Expression::Value(Value::Function {
+                        pure: true,
+                        params,
+                        scope,
+                    })
+                }
                 _ => return Err(ParserError::FunctionExpected { line: line_num }),
             }
         }
+        Token::Arrow => {
+            let scope = Box::new(parse_scope(next_lines, Some(indentation))?);
+            Expression::Value(Value::Function {
+                pure: true,
+                params: vec![],
+                scope,
+            })
+        }
         Token::LeftBoxBracket => {
             let params = parse_param_list(tokens, line_num)?;
-            match tokens.next() {
-                Some(Token::Arrow) => (),
-                _ => return Err(ParserError::ArrowExpected { line: line_num }),
-            };
-            let scope = Box::new(parse_scope(next_lines, indentation)?);
-            Expression::Value(Value::Function { pure: true, args: params, scope })
+            assert_next_token!(
+                tokens,
+                Token::Arrow,
+                ParserError::ArrowExpected { line: line_num }
+            );
+            let scope = Box::new(parse_scope(next_lines, Some(indentation))?);
+            Expression::Value(Value::Function {
+                pure: true,
+                params,
+                scope,
+            })
         }
-        // TODO: Think about the nested scopes !!!!!!!!!!
+
         Token::If => {
             let condition = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
-            let then_scope = Box::new(parse_scope(next_lines, indentation)?);
-            match tokens.next() {
-                Some(Token::Else) => (),
-                _ => return Err(ParserError::ThenExpected { line: line_num }),
-            };
-            let else_scope = Box::new(parse_scope(next_lines, indentation)?);
-            Expression::If { condition, then_scope, else_scope }
+            assert_next_token!(
+                tokens,
+                Token::Then,
+                ParserError::ThenExpected { line: line_num }
+            );
+            
+            let then_scope = Box::new(parse_scope(next_lines, Some(indentation))?);
+            let line = next_lines
+                .next()
+                .ok_or(ParserError::UnexpectedEOF)?
+                .map_err(|_| ParserError::LexerError)?;
+            if line.indentation != indentation {
+                return Err(ParserError::IndentationError {
+                    line: line_num,
+                    msg: String::from("Indentation of \"then\" should be the same as \"if\"!"),
+                    expected: indentation,
+                    actual: line.indentation,
+                });
+            }
+            assert_next_token!(
+                line.tokens.into_iter(),
+                Token::Else,
+                ParserError::ElseExpected { line: line_num }
+            );
+
+            let else_scope = Box::new(parse_scope(next_lines, Some(indentation))?);
+            Expression::If {
+                condition,
+                then_scope,
+                else_scope,
+            }
         }
         Token::LeftBracket => {
             let expr = parse_expression(tokens, line_num, next_lines, indentation)?;
-
-            let next_token = tokens
-                .next()
-                .ok_or(ParserError::UnexpectedEndOfLine { line: line_num })?;
-            match next_token {
-                Token::RightBracket => (),
-                _ => return Err(ParserError::UnbalancedBracketsError { line: line_num }),
-            }
+            assert_next_token!(
+                tokens,
+                Token::RightBracket,
+                ParserError::UnbalancedBracketsError { line: line_num }
+            );
             expr
         }
-        token => return Err(ParserError::UnexpectedToken { line: line_num, token: token.clone() }),
+        token => {
+            return Err(ParserError::UnexpectedToken {
+                line: line_num,
+                token: token.clone(),
+            })
+        }
     };
 
     if let Some(Token::Operation(op)) = tokens.peek() {
         tokens.next().unwrap();
         let expr_2 = parse_expression(tokens, line_num, next_lines, indentation)?;
-        parse_binary_operation(op, expr, expr_2)
+        parse_binary_operation(op, expr, expr_2, line_num)
     } else {
         Ok(expr)
     }
@@ -307,7 +348,11 @@ enum FunctionLine {
     Empty,
 }
 
-fn parse_line(line: &Line, next_lines: &mut Peekable<LinesIterator>, indentation: u16) -> Result<FunctionLine, ParserError> {
+fn parse_line(
+    line: &Line,
+    next_lines: &mut Peekable<LinesIterator>,
+    indentation: u16,
+) -> Result<FunctionLine, ParserError> {
     let tokens = &line.tokens;
 
     if tokens.len() == 0 {
@@ -328,7 +373,8 @@ fn parse_line(line: &Line, next_lines: &mut Peekable<LinesIterator>, indentation
         }
     } else {
         let mut iter = tokens.iter().peekable();
-        parse_expression(&mut iter, line.number, next_lines, indentation).map(|exp| FunctionLine::Expression(exp))
+        parse_expression(&mut iter, line.number, next_lines, indentation)
+            .map(|exp| FunctionLine::Expression(exp))
     }
 }
 
@@ -367,7 +413,7 @@ fn handle_line(
 
 fn parse_scope(
     lines: &mut Peekable<LinesIterator>,
-    outside_indentation: u16,
+    outside_indentation_op: Option<u16>,
 ) -> Result<Scope, ParserError> {
     let mut assignments = Vec::<(String, Expression)>::new();
     let mut expression: Option<enums::Expression> = None;
@@ -375,23 +421,34 @@ fn parse_scope(
     let line = lines
         .next()
         .ok_or(ParserError::UnexpectedEOF)?
-        .map_err(|err| ParserError::LexerError(err))?;
+        .map_err(|_| ParserError::LexerError)?;
 
     let scope_indentation = line.indentation;
-    if scope_indentation <= outside_indentation {
-        return Err(ParserError::IndentationError {
-            line: line.number,
-            msg: String::from("Scope has to be indented"),
-            expected: outside_indentation + 1,
-            actual: outside_indentation,
-        });
+    if let Some(outside_indentation) = outside_indentation_op {
+        if scope_indentation <= outside_indentation {
+            return Err(ParserError::IndentationError {
+                line: line.number,
+                msg: String::from("Scope has to be indented"),
+                expected: outside_indentation + 1,
+                actual: outside_indentation,
+            });
+        }
     }
 
-    handle_line(&line, &mut expression, &mut assignments,  lines, scope_indentation)?;
+    handle_line(
+        &line,
+        &mut expression,
+        &mut assignments,
+        lines,
+        scope_indentation,
+    )?;
 
     while let Some(line_result) = lines.peek() {
         let next_line = line_result.as_ref().map_err(|_| ParserError::PeekError)?;
-        if next_line.indentation == outside_indentation {
+        // TODO: make it safer
+        if outside_indentation_op.is_some()
+            && next_line.indentation == outside_indentation_op.unwrap()
+        {
             // end of scope
             break;
         } else if next_line.indentation != scope_indentation {
@@ -404,12 +461,15 @@ fn parse_scope(
             });
         } else {
             // scope has not ended and has valid indentation
-            let line = lines
-                .next()
-                .unwrap()
-                .map_err(|err| ParserError::LexerError(err))?;
+            let line = lines.next().unwrap().map_err(|_| ParserError::LexerError)?;
 
-            handle_line(&line, &mut expression, &mut assignments, lines, scope_indentation)?
+            handle_line(
+                &line,
+                &mut expression,
+                &mut assignments,
+                lines,
+                scope_indentation,
+            )?
         }
     }
 
@@ -424,7 +484,7 @@ fn parse_scope(
 
 pub fn parse(lines: LinesIterator) -> Result<Scope, ParserError> {
     let mut lines = lines.peekable();
-    let function_body = parse_scope(&mut lines, 0)?;
+    let function_body = parse_scope(&mut lines, None)?;
 
     Ok(Scope {
         assignments: function_body.assignments,
