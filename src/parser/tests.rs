@@ -85,6 +85,80 @@ fn test_values() {
 }
 
 #[test]
+fn test_builtin_functions() {
+    test_one_line_expression(
+        vec![
+            Token::Cons,
+            Token::LeftBracket,
+            Token::Name(String::from("foo")),
+            Token::Comma,
+            Token::Name(String::from("bar")),
+            Token::RightBracket,
+        ],
+        Expression::Cons(
+            Box::new(Expression::Name(String::from("foo"))),
+            Box::new(Expression::Name(String::from("bar"))),
+        ),
+    );
+
+    test_one_line_expression_error(
+        vec![
+            Token::Cons,
+            Token::LeftBracket,
+            Token::Name(String::from("foo")),
+            Token::RightBracket,
+        ],
+        ParserError::CommaExpected { line: 1 },
+    );
+
+    test_one_line_expression(
+        vec![
+            Token::Print,
+            Token::LeftBracket,
+            Token::Name(String::from("foo")),
+            Token::RightBracket,
+        ],
+        Expression::PrintCall(Box::new(Expression::Name(String::from("foo")))),
+    );
+
+    test_one_line_expression(
+        vec![
+            Token::Left,
+            Token::LeftBracket,
+            Token::Name(String::from("foo")),
+            Token::RightBracket,
+        ],
+        Expression::Left(Box::new(Expression::Name(String::from("foo")))),
+    );
+
+    test_one_line_expression(
+        vec![
+            Token::Right,
+            Token::LeftBracket,
+            Token::Name(String::from("foo")),
+            Token::RightBracket,
+        ],
+        Expression::Right(Box::new(Expression::Name(String::from("foo")))),
+    );
+
+    test_one_line_expression_error(
+        vec![
+            Token::Right,
+        ],
+        ParserError::LeftBracketExpected { line: 1 }
+    );
+
+    test_one_line_expression(
+        vec![
+            Token::Read,
+        ],
+        Expression::ReadCall,
+    );
+
+
+}
+
+#[test]
 fn test_expression() {
     test_one_line_expression(
         vec![
@@ -412,6 +486,50 @@ fn test_function_no_args() {
 }
 
 #[test]
+fn test_function_nonpure_no_args() {
+    let lines: Vec<Result<Line, std::io::Error>> = vec![
+        Ok(Line {
+            number: 1,
+            indentation: 0,
+            tokens: vec![
+                Token::Name(String::from("foo")),
+                Token::Assignment,
+                Token::NonPure,
+                Token::Arrow,
+            ],
+        }),
+        Ok(Line {
+            number: 3,
+            indentation: 1,
+            tokens: vec![Token::Name(String::from("foo"))],
+        }),
+        Ok(Line {
+            number: 4,
+            indentation: 0,
+            tokens: vec![Token::Name(String::from("foo"))],
+        }),
+    ];
+    let result = parse(Box::new(lines.into_iter())).unwrap();
+    assert_eq!(
+        result,
+        Scope {
+            assignments: vec![(
+                String::from("foo"),
+                Expression::Value(Value::Function {
+                    pure: false,
+                    params: vec![],
+                    scope: Box::new(Scope {
+                        assignments: vec![],
+                        expression: Expression::Name(String::from("foo"))
+                    })
+                })
+            )],
+            expression: Expression::Name(String::from("foo"))
+        }
+    );
+}
+
+#[test]
 fn test_if_else() {
     let lines: Vec<Result<Line, std::io::Error>> = vec![
         Ok(Line {
@@ -452,8 +570,8 @@ fn test_if_else() {
         Ok(Line {
             number: 6,
             indentation: 0,
-            tokens: vec![Token::Name(String::from("foo"))]
-        })
+            tokens: vec![Token::Name(String::from("foo"))],
+        }),
     ];
     let result = parse(Box::new(lines.into_iter())).unwrap();
     assert_eq!(

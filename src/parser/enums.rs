@@ -1,22 +1,23 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Scope {
     pub assignments: Vec<(String, Expression)>,
     pub expression: Expression,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Number {
     Float(f64),
     Integer(i32),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Boolean(bool),
     Nil,
     Number(Number),
     Char(char),
     Error(String),
+    Tuple(Box<Value>, Box<Value>),
     Function {
         pure: bool,
         params: Vec<String>,
@@ -24,14 +25,14 @@ pub enum Value {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum BoolBinOp {
     And,
     Or,
     Xor,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum NumberBinOp {
     Plus,
     Minus,
@@ -41,7 +42,7 @@ pub enum NumberBinOp {
     Modulo,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum CmpBinOp {
     Eq,
     Lt,
@@ -50,20 +51,20 @@ pub enum CmpBinOp {
     GEq,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum BinaryOp {
     Boolean(BoolBinOp),
     Number(NumberBinOp),
     Compare(CmpBinOp),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum UnaryOp {
     Negation,
     Minus,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Value(Value),
     Name(String),

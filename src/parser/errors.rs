@@ -7,8 +7,8 @@ pub enum ParserError {
     IndentationError {
         line: u32,
         msg: String,
-        expected: u16,
-        actual: u16,
+        expected: i32,
+        actual: i32,
     },
     ExpressionExpected {
         line: u32,

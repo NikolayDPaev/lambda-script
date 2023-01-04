@@ -1,5 +1,5 @@
-mod enums;
-mod errors;
+pub mod enums;
+pub mod errors;
 mod tests;
 use std::iter::Peekable;
 use std::slice::Iter;
@@ -11,6 +11,14 @@ use crate::parser::errors::*;
 macro_rules! new_binary_operation {
     ($op:expr, $expr_1:expr, $expr_2:expr) => {
         Expression::BinaryOperation($op, Box::new($expr_1), Box::new($expr_2))
+    };
+}
+
+macro_rules! assert_no_more_tokens {
+    ($tokens:expr, $line_num:expr) => {
+        if let Some(token) = $tokens.peek() {
+            return Err(ParserError::UnexpectedToken{line: $line_num, token: (*token).clone()});
+        }
     };
 }
 
@@ -251,7 +259,7 @@ fn parse_expression(
             match function_expr {
                 Expression::Value(Value::Function { pure: _, params, scope }) => {
                     Expression::Value(Value::Function {
-                        pure: true,
+                        pure: false,
                         params,
                         scope,
                     })
@@ -260,7 +268,7 @@ fn parse_expression(
             }
         }
         Token::Arrow => {
-            let scope = Box::new(parse_scope(next_lines, Some(indentation))?);
+            let scope = Box::new(parse_scope(next_lines, indentation.into())?);
             Expression::Value(Value::Function {
                 pure: true,
                 params: vec![],
@@ -274,7 +282,7 @@ fn parse_expression(
                 Token::Arrow,
                 ParserError::ArrowExpected { line: line_num }
             );
-            let scope = Box::new(parse_scope(next_lines, Some(indentation))?);
+            let scope = Box::new(parse_scope(next_lines, indentation.into())?);
             Expression::Value(Value::Function {
                 pure: true,
                 params,
@@ -290,7 +298,7 @@ fn parse_expression(
                 ParserError::ThenExpected { line: line_num }
             );
             
-            let then_scope = Box::new(parse_scope(next_lines, Some(indentation))?);
+            let then_scope = Box::new(parse_scope(next_lines, indentation.into())?);
             let line = next_lines
                 .next()
                 .ok_or(ParserError::UnexpectedEOF)?
@@ -299,8 +307,8 @@ fn parse_expression(
                 return Err(ParserError::IndentationError {
                     line: line_num,
                     msg: String::from("Indentation of \"then\" should be the same as \"if\"!"),
-                    expected: indentation,
-                    actual: line.indentation,
+                    expected: indentation as i32,
+                    actual: line.indentation as i32,
                 });
             }
             assert_next_token!(
@@ -309,7 +317,7 @@ fn parse_expression(
                 ParserError::ElseExpected { line: line_num }
             );
 
-            let else_scope = Box::new(parse_scope(next_lines, Some(indentation))?);
+            let else_scope = Box::new(parse_scope(next_lines, indentation.into())?);
             Expression::If {
                 condition,
                 then_scope,
@@ -380,11 +388,11 @@ fn parse_line(
 
 fn handle_line(
     line: &Line,
-    expression: &mut Option<Expression>,
+    expression: &Option<Expression>,
     assignments: &mut Vec<(String, Expression)>,
     next_lines: &mut Peekable<LinesIterator>,
     indentation: u16,
-) -> Result<(), ParserError> {
+) -> Result<Option<Expression>, ParserError> {
     match parse_line(line, next_lines, indentation)? {
         FunctionLine::Expression(exp) => match expression {
             Some(_) => {
@@ -393,7 +401,9 @@ fn handle_line(
                     msg: String::from("A scope can only have 1 expression!"),
                 })
             }
-            None => *expression = Some(exp),
+            None => {
+                return Ok(Some(exp));
+            }
         },
         FunctionLine::Assignment(string, exp) => match expression {
             Some(_) => {
@@ -408,68 +418,73 @@ fn handle_line(
         },
         FunctionLine::Empty => (),
     };
-    Ok(())
+    Ok(None)
 }
 
 fn parse_scope(
     lines: &mut Peekable<LinesIterator>,
-    outside_indentation_op: Option<u16>,
-) -> Result<Scope, ParserError> {
+    outside_indentation: i32,
+) -> Result<Scope, ParserError> {    
     let mut assignments = Vec::<(String, Expression)>::new();
-    let mut expression: Option<enums::Expression> = None;
+    let mut expression: Option<Expression> = None;
+    let mut last_line_number;
 
     let line = lines
         .next()
         .ok_or(ParserError::UnexpectedEOF)?
         .map_err(|_| ParserError::LexerError)?;
 
-    let scope_indentation = line.indentation;
-    if let Some(outside_indentation) = outside_indentation_op {
-        if scope_indentation <= outside_indentation {
-            return Err(ParserError::IndentationError {
-                line: line.number,
-                msg: String::from("Scope has to be indented"),
-                expected: outside_indentation + 1,
-                actual: outside_indentation,
-            });
-        }
-    }
+    last_line_number = line.number;
 
-    handle_line(
+    let scope_indentation = line.indentation;   
+    if scope_indentation as i32 <= outside_indentation {
+        return Err(ParserError::IndentationError {
+            line: line.number,
+            msg: String::from("Scope has to be indented"),
+            expected: outside_indentation + 1,
+            actual: outside_indentation,
+        });
+    }
+    
+
+    if let Some(exp) = handle_line(
         &line,
         &mut expression,
         &mut assignments,
         lines,
         scope_indentation,
-    )?;
+    )? {
+        expression = Some(exp);
+    }
 
     while let Some(line_result) = lines.peek() {
         let next_line = line_result.as_ref().map_err(|_| ParserError::PeekError)?;
-        // TODO: make it safer
-        if outside_indentation_op.is_some()
-            && next_line.indentation == outside_indentation_op.unwrap()
-        {
+        last_line_number = next_line.number;
+    
+        if next_line.indentation as i32 == outside_indentation {
             // end of scope
             break;
-        } else if next_line.indentation != scope_indentation {
+        } else if next_line.indentation != scope_indentation && outside_indentation > 0 {
             // scope has not ended yet but has different indentation
             return Err(ParserError::IndentationError {
-                line: line.number,
-                msg: String::from("The indentation of a function should be the same"),
-                expected: scope_indentation,
-                actual: line.indentation,
+                line: last_line_number,
+                msg: String::from("The indentation of a scope should be the same"),
+                expected: scope_indentation as i32,
+                actual: line.indentation as i32,
             });
         } else {
             // scope has not ended and has valid indentation
             let line = lines.next().unwrap().map_err(|_| ParserError::LexerError)?;
 
-            handle_line(
+            if let Some(exp) = handle_line(
                 &line,
                 &mut expression,
                 &mut assignments,
                 lines,
                 scope_indentation,
-            )?
+            )? {
+                expression = Some(exp);
+            }
         }
     }
 
@@ -478,13 +493,13 @@ fn parse_scope(
             assignments,
             expression,
         }),
-        None => Err(ParserError::ExpressionExpected { line: line.number }),
+        None => Err(ParserError::ExpressionExpected { line: last_line_number }),
     }
 }
 
 pub fn parse(lines: LinesIterator) -> Result<Scope, ParserError> {
     let mut lines = lines.peekable();
-    let function_body = parse_scope(&mut lines, None)?;
+    let function_body = parse_scope(&mut lines, -1)?;
 
     Ok(Scope {
         assignments: function_body.assignments,
