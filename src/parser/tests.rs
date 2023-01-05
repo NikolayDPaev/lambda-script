@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 #[cfg(test)]
 use crate::lexer::{Line, Token};
 use crate::parser::*;
@@ -13,7 +15,7 @@ fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
         result,
         Scope {
             assignments: vec![],
-            expression
+            expression: Rc::new(expression),
         }
     );
 }
@@ -96,8 +98,8 @@ fn test_builtin_functions() {
             Token::RightBracket,
         ],
         Expression::Cons(
-            Box::new(Expression::Name(String::from("foo"))),
-            Box::new(Expression::Name(String::from("bar"))),
+            Rc::new(Expression::Name(String::from("foo"))),
+            Rc::new(Expression::Name(String::from("bar"))),
         ),
     );
 
@@ -118,7 +120,7 @@ fn test_builtin_functions() {
             Token::Name(String::from("foo")),
             Token::RightBracket,
         ],
-        Expression::PrintCall(Box::new(Expression::Name(String::from("foo")))),
+        Expression::PrintCall(Rc::new(Expression::Name(String::from("foo")))),
     );
 
     test_one_line_expression(
@@ -128,7 +130,7 @@ fn test_builtin_functions() {
             Token::Name(String::from("foo")),
             Token::RightBracket,
         ],
-        Expression::Left(Box::new(Expression::Name(String::from("foo")))),
+        Expression::Left(Rc::new(Expression::Name(String::from("foo")))),
     );
 
     test_one_line_expression(
@@ -138,7 +140,7 @@ fn test_builtin_functions() {
             Token::Name(String::from("foo")),
             Token::RightBracket,
         ],
-        Expression::Right(Box::new(Expression::Name(String::from("foo")))),
+        Expression::Right(Rc::new(Expression::Name(String::from("foo")))),
     );
 
     test_one_line_expression_error(
@@ -170,10 +172,10 @@ fn test_expression() {
             Token::RightBracket,
         ],
         Expression::FunctionCall {
-            name: String::from("foo"),
+            name: Rc::new(Expression::Name(String::from("foo"))),
             args: vec![
-                Expression::Name(String::from("a")),
-                Expression::Name(String::from("b")),
+                Rc::new(Expression::Name(String::from("a"))),
+                Rc::new(Expression::Name(String::from("b"))),
             ],
         },
     );
@@ -200,18 +202,18 @@ fn test_operation() {
         ],
         Expression::BinaryOperation(
             BinaryOp::Number(NumberBinOp::Plus),
-            Box::new(Expression::FunctionCall {
-                name: String::from("foo"),
+            Rc::new(Expression::FunctionCall {
+                name: Rc::new(Expression::Name(String::from("foo"))),
                 args: vec![
-                    Expression::Name(String::from("a")),
-                    Expression::Name(String::from("b")),
+                    Rc::new(Expression::Name(String::from("a"))),
+                    Rc::new(Expression::Name(String::from("b"))),
                 ],
             }),
-            Box::new(Expression::FunctionCall {
-                name: String::from("foo"),
+            Rc::new(Expression::FunctionCall {
+                name: Rc::new(Expression::Name(String::from("foo"))),
                 args: vec![
-                    Expression::Name(String::from("b")),
-                    Expression::Name(String::from("c")),
+                    Rc::new(Expression::Name(String::from("b"))),
+                    Rc::new(Expression::Name(String::from("c"))),
                 ],
             }),
         ),
@@ -236,17 +238,17 @@ fn test_multiple_operation() {
         ],
         Expression::BinaryOperation(
             BinaryOp::Number(NumberBinOp::Plus),
-            Box::new(Expression::Name(String::from("a"))),
-            Box::new(Expression::BinaryOperation(
+            Rc::new(Expression::Name(String::from("a"))),
+            Rc::new(Expression::BinaryOperation(
                 BinaryOp::Compare(CmpBinOp::Lt),
-                Box::new(Expression::FunctionCall {
-                    name: String::from("foo"),
+                Rc::new(Expression::FunctionCall {
+                    name: Rc::new(Expression::Name(String::from("foo"))),
                     args: vec![
-                        Expression::Name(String::from("b")),
-                        Expression::Name(String::from("c")),
+                        Rc::new(Expression::Name(String::from("b"))),
+                        Rc::new(Expression::Name(String::from("c"))),
                     ],
                 }),
-                Box::new(Expression::Name(String::from("b"))),
+                Rc::new(Expression::Name(String::from("b"))),
             )),
         ),
     );
@@ -278,24 +280,24 @@ fn test_brackets_expression() {
         ],
         Expression::BinaryOperation(
             BinaryOp::Compare(CmpBinOp::GEq),
-            Box::new(Expression::BinaryOperation(
+            Rc::new(Expression::BinaryOperation(
                 BinaryOp::Number(NumberBinOp::Plus),
-                Box::new(Expression::Name(String::from("a"))),
-                Box::new(Expression::FunctionCall {
-                    name: String::from("foo"),
+                Rc::new(Expression::Name(String::from("a"))),
+                Rc::new(Expression::FunctionCall {
+                    name: Rc::new(Expression::Name(String::from("foo"))),
                     args: vec![
-                        Expression::Name(String::from("b")),
-                        Expression::Name(String::from("c")),
+                        Rc::new(Expression::Name(String::from("b"))),
+                        Rc::new(Expression::Name(String::from("c"))),
                     ],
                 }),
             )),
-            Box::new(Expression::BinaryOperation(
+            Rc::new(Expression::BinaryOperation(
                 BinaryOp::Number(NumberBinOp::Plus),
-                Box::new(Expression::Name(String::from("b"))),
-                Box::new(Expression::BinaryOperation(
+                Rc::new(Expression::Name(String::from("b"))),
+                Rc::new(Expression::BinaryOperation(
                     BinaryOp::Number(NumberBinOp::Minus),
-                    Box::new(Expression::Name(String::from("c"))),
-                    Box::new(Expression::Name(String::from("d"))),
+                    Rc::new(Expression::Name(String::from("c"))),
+                    Rc::new(Expression::Name(String::from("d"))),
                 )),
             )),
         ),
@@ -322,19 +324,19 @@ fn test_nested_expression() {
             Token::RightBracket,
         ],
         Expression::FunctionCall {
-            name: String::from("foo"),
+            name: Rc::new(Expression::Name(String::from("foo"))),
             args: vec![
-                Expression::FunctionCall {
-                    name: String::from("a"),
+                Rc::new(Expression::FunctionCall {
+                    name: Rc::new(Expression::Name(String::from("a"))),
                     args: vec![
-                        Expression::Value(Value::Number(Number::Integer(12))),
-                        Expression::Name(String::from("b")),
+                        Rc::new(Expression::Value(Value::Number(Number::Integer(12)))),
+                        Rc::new(Expression::Name(String::from("b"))),
                     ],
-                },
-                Expression::FunctionCall {
-                    name: String::from("c"),
+                }),
+                Rc::new(Expression::FunctionCall {
+                    name: Rc::new(Expression::Name(String::from("c"))),
                     args: vec![],
-                },
+                }),
             ],
         },
     );
@@ -372,10 +374,10 @@ fn test_assignments_name() {
         result,
         Scope {
             assignments: vec![
-                (String::from("foo"), Expression::Name(String::from("bar"))),
-                (String::from("bar"), Expression::Name(String::from("foo")))
+                (String::from("foo"), Rc::new(Expression::Name(String::from("bar")))),
+                (String::from("bar"), Rc::new(Expression::Name(String::from("foo"))))
             ],
-            expression: Expression::Name(String::from("foo"))
+            expression: Rc::new(Expression::Name(String::from("foo")))
         }
     );
 }
@@ -423,19 +425,19 @@ fn test_function_multiple_args() {
         Scope {
             assignments: vec![(
                 String::from("foo"),
-                Expression::Value(Value::Function {
+                Rc::new(Expression::Value(Value::Function {
                     pure: true,
                     params: vec![String::from("a"), String::from("b")],
                     scope: Box::new(Scope {
                         assignments: vec![(
                             String::from("bar"),
-                            Expression::Value(Value::Number(Number::Integer(123)))
+                            Rc::new(Expression::Value(Value::Number(Number::Integer(123))))
                         )],
-                        expression: Expression::Name(String::from("foo"))
+                        expression: Rc::new(Expression::Name(String::from("foo")))
                     })
                 })
-            )],
-            expression: Expression::Name(String::from("foo"))
+            ))],
+            expression: Rc::new(Expression::Name(String::from("foo")))
         }
     );
 }
@@ -471,16 +473,16 @@ fn test_function_no_args() {
         Scope {
             assignments: vec![(
                 String::from("foo"),
-                Expression::Value(Value::Function {
+                Rc::new(Expression::Value(Value::Function {
                     pure: true,
                     params: vec![],
                     scope: Box::new(Scope {
                         assignments: vec![],
-                        expression: Expression::Name(String::from("foo"))
+                        expression: Rc::new(Expression::Name(String::from("foo")))
                     })
                 })
-            )],
-            expression: Expression::Name(String::from("foo"))
+            ))],
+            expression: Rc::new(Expression::Name(String::from("foo")))
         }
     );
 }
@@ -515,16 +517,16 @@ fn test_function_nonpure_no_args() {
         Scope {
             assignments: vec![(
                 String::from("foo"),
-                Expression::Value(Value::Function {
+                Rc::new(Expression::Value(Value::Function {
                     pure: false,
                     params: vec![],
                     scope: Box::new(Scope {
                         assignments: vec![],
-                        expression: Expression::Name(String::from("foo"))
+                        expression: Rc::new(Expression::Name(String::from("foo")))
                     })
                 })
-            )],
-            expression: Expression::Name(String::from("foo"))
+            ))],
+            expression: Rc::new(Expression::Name(String::from("foo")))
         }
     );
 }
@@ -579,22 +581,22 @@ fn test_if_else() {
         Scope {
             assignments: vec![(
                 String::from("foo"),
-                Expression::If {
-                    condition: Box::new(Expression::Name(String::from("bar"))),
+                Rc::new(Expression::If {
+                    condition: Rc::new(Expression::Name(String::from("bar"))),
                     then_scope: Box::new(Scope {
                         assignments: vec![(
                             String::from("foo"),
-                            Expression::Value(Value::Boolean(true))
-                        )],
-                        expression: Expression::Name(String::from("foo"))
+                            Rc::new(Expression::Value(Value::Boolean(true))
+                        ))],
+                        expression: Rc::new(Expression::Name(String::from("foo")))
                     }),
                     else_scope: Box::new(Scope {
                         assignments: vec![],
-                        expression: Expression::Value(Value::Number(Number::Float(12.3)))
+                        expression: Rc::new(Expression::Value(Value::Number(Number::Float(12.3))))
                     })
                 }
-            )],
-            expression: Expression::Name(String::from("foo"))
+            ))],
+            expression: Rc::new(Expression::Name(String::from("foo")))
         }
     );
 }

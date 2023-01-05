@@ -2,6 +2,7 @@ pub mod enums;
 pub mod errors;
 mod tests;
 use std::iter::Peekable;
+use std::rc::Rc;
 use std::slice::Iter;
 
 use crate::lexer::*;
@@ -10,7 +11,7 @@ use crate::parser::errors::*;
 
 macro_rules! new_binary_operation {
     ($op:expr, $expr_1:expr, $expr_2:expr) => {
-        Expression::BinaryOperation($op, Box::new($expr_1), Box::new($expr_2))
+        Expression::BinaryOperation($op, Rc::new($expr_1), Rc::new($expr_2))
     };
 }
 
@@ -85,7 +86,7 @@ fn parse_args_list(
     line_num: u32,
     next_lines: &mut Peekable<LinesIterator>,
     indentation: u16,
-) -> Result<Vec<Expression>, ParserError> {
+) -> Result<Vec<Rc<Expression>>, ParserError> {
     let mut vec = vec![];
 
     loop {
@@ -100,7 +101,7 @@ fn parse_args_list(
             }
             _ => {
                 let expr = parse_expression(tokens, line_num, next_lines, indentation)?;
-                vec.push(expr);
+                vec.push(Rc::new(expr));
                 match tokens.peek() {
                     Some(Token::Comma) => {
                         tokens.next().unwrap();
@@ -164,11 +165,11 @@ fn parse_expression(
                 tokens.next().unwrap();
                 let expr_vec = parse_args_list(tokens, line_num, next_lines, indentation)?;
                 Expression::FunctionCall {
-                    name: string.clone(),
+                    name: Rc::new(Expression::Name(string.clone())),
                     args: expr_vec,
                 }
             } else {
-                Expression::Name(string.to_string())
+                Expression::Name(string.clone())
             }
         }
         Token::Number(string) => parse_number(string, line_num)?,
@@ -184,11 +185,11 @@ fn parse_expression(
         Token::False => Expression::Value(Value::Boolean(false)),
         Token::Operation(Op::Minus) => {
             let expr = parse_expression(tokens, line_num, next_lines, indentation)?;
-            Expression::UnaryOperation(UnaryOp::Minus, Box::new(expr))
+            Expression::UnaryOperation(UnaryOp::Minus, Rc::new(expr))
         }
         Token::Operation(Op::Negation) => {
             let expr = parse_expression(tokens, line_num, next_lines, indentation)?;
-            Expression::UnaryOperation(UnaryOp::Negation, Box::new(expr))
+            Expression::UnaryOperation(UnaryOp::Negation, Rc::new(expr))
         }
         Token::Nil => Expression::Value(Value::Nil),
         Token::Cons => {
@@ -197,13 +198,13 @@ fn parse_expression(
                 Token::LeftBracket,
                 ParserError::LeftBracketExpected { line: line_num }
             );
-            let expr_1 = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            let expr_1 = Rc::new(parse_expression(tokens, line_num, next_lines, indentation)?);
             assert_next_token!(
                 tokens,
                 Token::Comma,
                 ParserError::CommaExpected { line: line_num }
             );
-            let expr_2 = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            let expr_2 = Rc::new(parse_expression(tokens, line_num, next_lines, indentation)?);
             assert_next_token!(
                 tokens,
                 Token::RightBracket,
@@ -217,7 +218,7 @@ fn parse_expression(
                 Token::LeftBracket,
                 ParserError::LeftBracketExpected { line: line_num }
             );
-            let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            let expr = Rc::new(parse_expression(tokens, line_num, next_lines, indentation)?);
             assert_next_token!(
                 tokens,
                 Token::RightBracket,
@@ -231,7 +232,7 @@ fn parse_expression(
                 Token::LeftBracket,
                 ParserError::LeftBracketExpected { line: line_num }
             );
-            let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            let expr = Rc::new(parse_expression(tokens, line_num, next_lines, indentation)?);
             assert_next_token!(
                 tokens,
                 Token::RightBracket,
@@ -245,7 +246,7 @@ fn parse_expression(
                 Token::LeftBracket,
                 ParserError::LeftBracketExpected { line: line_num }
             );
-            let expr = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            let expr = Rc::new(parse_expression(tokens, line_num, next_lines, indentation)?);
             assert_next_token!(
                 tokens,
                 Token::RightBracket,
@@ -291,7 +292,7 @@ fn parse_expression(
         }
 
         Token::If => {
-            let condition = Box::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            let condition = Rc::new(parse_expression(tokens, line_num, next_lines, indentation)?);
             assert_next_token!(
                 tokens,
                 Token::Then,
@@ -389,7 +390,7 @@ fn parse_line(
 fn handle_line(
     line: &Line,
     expression: &Option<Expression>,
-    assignments: &mut Vec<(String, Expression)>,
+    assignments: &mut Vec<(String, Rc<Expression>)>,
     next_lines: &mut Peekable<LinesIterator>,
     indentation: u16,
 ) -> Result<Option<Expression>, ParserError> {
@@ -414,7 +415,7 @@ fn handle_line(
                     ),
                 })
             }
-            None => assignments.push((string, exp)),
+            None => assignments.push((string, Rc::new(exp))),
         },
         FunctionLine::Empty => (),
     };
@@ -425,7 +426,7 @@ fn parse_scope(
     lines: &mut Peekable<LinesIterator>,
     outside_indentation: i32,
 ) -> Result<Scope, ParserError> {    
-    let mut assignments = Vec::<(String, Expression)>::new();
+    let mut assignments = Vec::<(String, Rc<Expression>)>::new();
     let mut expression: Option<Expression> = None;
     let mut last_line_number;
 
@@ -491,7 +492,7 @@ fn parse_scope(
     match expression {
         Some(expression) => Ok(Scope {
             assignments,
-            expression,
+            expression: Rc::new(expression),
         }),
         None => Err(ParserError::ExpressionExpected { line: last_line_number }),
     }

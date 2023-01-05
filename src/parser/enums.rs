@@ -1,7 +1,9 @@
+use std::rc::Rc;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Scope {
-    pub assignments: Vec<(String, Expression)>,
-    pub expression: Expression,
+    pub assignments: Vec<(String, Rc<Expression>)>,
+    pub expression: Rc<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -69,18 +71,18 @@ pub enum Expression {
     Value(Value),
     Name(String),
     FunctionCall {
-        name: String, //TODO name should also be expression
-        args: Vec<Expression>,
+        name: Rc<Expression>,
+        args: Vec<Rc<Expression>>,
     },
     ReadCall,
-    PrintCall(Box<Expression>),
-    Cons(Box<Expression>,Box<Expression>),
-    Left(Box<Expression>),
-    Right(Box<Expression>),
-    UnaryOperation(UnaryOp, Box<Expression>),
-    BinaryOperation(BinaryOp, Box<Expression>, Box<Expression>),
+    PrintCall(Rc<Expression>),
+    Cons(Rc<Expression>,Rc<Expression>),
+    Left(Rc<Expression>),
+    Right(Rc<Expression>),
+    UnaryOperation(UnaryOp, Rc<Expression>),
+    BinaryOperation(BinaryOp, Rc<Expression>, Rc<Expression>),
     If {
-        condition: Box<Expression>,
+        condition: Rc<Expression>,
         then_scope: Box<Scope>,
         else_scope: Box<Scope>,
     }
