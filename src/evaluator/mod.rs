@@ -1,100 +1,113 @@
 use by_address::ByAddress;
 use rpds::HashTrieMap;
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::parser::enums::*;
 
 pub enum EvaluatorError {
-    UnknownName(String),
-    FunctionExpected(String),
-    ArgsAndParamsLensMismatch(String),
-    CallingNonPureFunctionInPureScope(String),
+    UnknownName(Rc<Expression>),
+    FunctionExpected(Rc<Expression>),
+    ArgsAndParamsLensMismatch(Rc<Expression>),
+    CallingNonPureFunctionInPureScope(Rc<Expression>),
+    UndefinedOperation { msg: String, expr: Rc<Expression> },
 }
 
-pub struct Evaluator<'a> {
-    memoization_map: HashMap<ByAddress<&'a Expression>, Value>,
+pub struct Evaluator {
+    memoization_map: HashMap<ByAddress<Rc<Expression>>, Value>,
 }
 
-impl<'a> Evaluator<'a> {
+impl Evaluator {
     pub fn eval_scope(
         &mut self,
-        scope: &'a Scope,
-        outside_assignments: HashTrieMap<String, &'a Expression>,
+        scope: Scope,
+        outside_assignments: HashTrieMap<String, Rc<Expression>>,
         memoize: bool,
-    ) -> Result<Expression, EvaluatorError> {
+    ) -> Result<Rc<Expression>, EvaluatorError> {
         let assignments = scope
             .assignments
-            .iter()
+            .into_iter()
             .fold(outside_assignments.clone(), |acc, (key, value)| {
-                acc.insert(key.clone(), value)
+                acc.insert(key.clone(), Rc::new(value))
             });
 
-        self.eval_expression(&scope.expression, assignments, memoize)
+        self.eval_expression(Rc::new(scope.expression), assignments, memoize)
     }
 
     fn eval_expression(
         &mut self,
-        expr: &'a Expression,
-        assignments: HashTrieMap<String, &'a Expression>,
+        expr: Rc<Expression>,
+        assignments: HashTrieMap<String, Rc<Expression>>,
         memoize: bool,
-    ) -> Result<Expression, EvaluatorError> {
+    ) -> Result<Rc<Expression>, EvaluatorError> {
         if let Some(value) = self.memoization_map.get(&ByAddress(expr)) {
-            return Ok(Expression::Value(value.clone()));
+            return Ok(Rc::new(Expression::Value(value.clone())));
         } else {
-            Ok (match expr {
+            Ok(match expr.as_ref() {
                 Expression::Value(v) => {
                     if memoize {
-                        self.memoization_map.insert(ByAddress(expr), v.clone());
+                        self.memoization_map
+                            .insert(ByAddress(expr.clone()), v.clone());
                     }
-                    Expression::Value(v.clone())
+                    expr.clone()
                 }
                 Expression::Name(string) => {
                     if let Some(expr) = assignments.get(string) {
                         self.eval_expression(*expr, assignments, memoize)?
                     } else {
-                        return Err(EvaluatorError::UnknownName(string.to_owned()));
+                        return Err(EvaluatorError::UnknownName(expr));
                     }
                 }
                 Expression::FunctionCall { name, args } => {
-                    if let Some(Expression::Value(Value::Function {
-                        pure,
-                        params,
-                        scope,
-                    })) = assignments.get(name)
-                    {
-                        if args.len() != params.len() {
-                            return Err(EvaluatorError::ArgsAndParamsLensMismatch(name.to_owned()));
+                    if let Some(rc_expr) = assignments.get(name) {
+                        match **rc_expr {
+                            Expression::Value(Value::Function {
+                                pure,
+                                params,
+                                scope,
+                            }) => {
+                                if args.len() != params.len() {
+                                    return Err(EvaluatorError::ArgsAndParamsLensMismatch(
+                                        *rc_expr,
+                                    ));
+                                }
+                                if memoize && !pure {
+                                    return Err(EvaluatorError::CallingNonPureFunctionInPureScope(
+                                        *rc_expr,
+                                    ));
+                                }
+                                let assignments = params
+                                    .into_iter()
+                                    .zip(args.into_iter())
+                                    .fold(assignments.clone(), |acc, (string, expr)| {
+                                        acc.insert(string, Rc::new(*expr))
+                                    });
+                                self.eval_scope(*scope, assignments, pure)?
+                            }
+                            _ => {
+                                return Err(EvaluatorError::FunctionExpected(*rc_expr));
+                            }
                         }
-                        if memoize && !pure {
-                            return Err(EvaluatorError::CallingNonPureFunctionInPureScope(
-                                name.to_owned(),
-                            ));
-                        }
-                        let assignments = params
-                            .iter()
-                            .zip(args.iter())
-                            .fold(assignments.clone(), |acc, (string, expr)| {
-                                acc.insert(string.to_string(), expr)
-                            });
-                        self.eval_scope(scope, assignments, *pure)?
-                    } else if let Some(_) = assignments.get(name) {
-                        return Err(EvaluatorError::FunctionExpected(name.to_owned()));
                     } else {
-                        return Err(EvaluatorError::UnknownName(name.to_owned()));
+                        return Err(EvaluatorError::UnknownName(expr));
                     }
                 }
                 Expression::ReadCall => todo!(),
                 Expression::PrintCall(_) => todo!(),
                 Expression::Cons(_, _) => todo!(),
-                Expression::Left(expr) => {
-                    let mut expr = **expr;
-                    loop {
-                        if let Expression::Cons(left, _) = expr {
-                            break *left
-                        }
-                        let new_expr = self.eval_expression(&expr, assignments.clone(), memoize)?;
-                        expr = new_expr;
+                Expression::Left(inside_expr) => match *inside_expr {
+                    Expression::Cons(left, _) => Rc::new(*left),
+                    Expression::Value(Value::Tuple(left, _)) => Rc::new(Expression::Value(*left)),
+                    Expression::Value(_) => {
+                        return Err(EvaluatorError::UndefinedOperation {
+                            msg: String::from("Left is defined only for cons and tuple"),
+                            expr: expr.clone(),
+                        })
                     }
+                    _ => Expression::Left(Box::new(self.eval_expression(
+                        expr,
+                        assignments,
+                        memoize,
+                    )?)),
                 },
                 Expression::Right(_) => todo!(),
                 Expression::UnaryOperation(_, _) => todo!(),

@@ -57,14 +57,14 @@ fn parse_binary_operation(
     })
 }
 
-fn parse_string(string: &str) -> Expression {
+fn parse_string(string: &str) -> Value {
     if string.len() == 0 {
-        Expression::Value(Value::Nil)
+        Value::Nil
     } else {
-        Expression::Cons(
-            Box::new(Expression::Value(Value::Char(
+        Value::Tuple(
+            Box::new(Value::Char(
                 string.chars().next().unwrap(),
-            ))),
+            )),
             Box::new(parse_string(&string[1..string.len()])),
         )
     }
@@ -172,7 +172,7 @@ fn parse_expression(
             }
         }
         Token::Number(string) => parse_number(string, line_num)?,
-        Token::Str(string) => parse_string(string),
+        Token::Str(string) => Expression::Value(parse_string(string)),
         Token::Char(string) => {
             if string.len() != 1 {
                 return Err(ParserError::CharParseError { line: line_num });

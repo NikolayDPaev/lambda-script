@@ -69,7 +69,7 @@ pub enum Expression {
     Value(Value),
     Name(String),
     FunctionCall {
-        name: String,
+        name: String, //TODO name should also be expression
         args: Vec<Expression>,
     },
     ReadCall,

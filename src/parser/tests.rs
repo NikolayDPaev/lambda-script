@@ -40,14 +40,14 @@ fn test_values() {
     );
     test_one_line_expression(
         vec![Token::Str(String::from("bar"))],
-        Expression::Cons(
-            Box::new(Expression::Value(Value::Char('b'))),
-            Box::new(Expression::Cons(
-                Box::new(Expression::Value(Value::Char('a'))),
-                Box::new(Expression::Cons(
-                    Box::new(Expression::Value(Value::Char('r'))),
-                    Box::new(Expression::Value(Value::Nil)),
-                )),
+        Expression::Value(Value::Tuple(
+            Box::new(Value::Char('b')),
+            Box::new(Value::Tuple(
+                Box::new(Value::Char('a')),
+                Box::new(Value::Tuple(
+                    Box::new(Value::Char('r')),
+                    Box::new(Value::Nil),
+                ))),
             )),
         ),
     );
