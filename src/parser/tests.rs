@@ -13,9 +13,9 @@ fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
     let result = parse(Box::new(lines.into_iter())).unwrap();
     assert_eq!(
         result,
-        Scope {
+        Scope::NonPure {
             assignments: vec![],
-            expression: Rc::new(expression),
+            statements: vec![Rc::new(expression)],
         }
     );
 }
@@ -372,12 +372,12 @@ fn test_assignments_name() {
     let result = parse(Box::new(lines.into_iter())).unwrap();
     assert_eq!(
         result,
-        Scope {
+        Scope::NonPure {
             assignments: vec![
                 (String::from("foo"), Rc::new(Expression::Name(String::from("bar")))),
                 (String::from("bar"), Rc::new(Expression::Name(String::from("foo"))))
             ],
-            expression: Rc::new(Expression::Name(String::from("foo")))
+            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
     );
 }
@@ -422,13 +422,12 @@ fn test_function_multiple_args() {
     let result = parse(Box::new(lines.into_iter())).unwrap();
     assert_eq!(
         result,
-        Scope {
+        Scope::NonPure {
             assignments: vec![(
                 String::from("foo"),
                 Rc::new(Expression::Value(Value::Function {
-                    pure: true,
                     params: vec![String::from("a"), String::from("b")],
-                    scope: Box::new(Scope {
+                    scope: Box::new(Scope::Pure {
                         assignments: vec![(
                             String::from("bar"),
                             Rc::new(Expression::Value(Value::Number(Number::Integer(123))))
@@ -437,7 +436,7 @@ fn test_function_multiple_args() {
                     })
                 })
             ))],
-            expression: Rc::new(Expression::Name(String::from("foo")))
+            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
     );
 }
@@ -470,19 +469,18 @@ fn test_function_no_args() {
     let result = parse(Box::new(lines.into_iter())).unwrap();
     assert_eq!(
         result,
-        Scope {
+        Scope::NonPure {
             assignments: vec![(
                 String::from("foo"),
                 Rc::new(Expression::Value(Value::Function {
-                    pure: true,
                     params: vec![],
-                    scope: Box::new(Scope {
+                    scope: Box::new(Scope::Pure {
                         assignments: vec![],
                         expression: Rc::new(Expression::Name(String::from("foo")))
                     })
                 })
             ))],
-            expression: Rc::new(Expression::Name(String::from("foo")))
+            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
     );
 }
@@ -506,6 +504,11 @@ fn test_function_nonpure_no_args() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
         Ok(Line {
+            number: 3,
+            indentation: 1,
+            tokens: vec![Token::Name(String::from("bar"))],
+        }),
+        Ok(Line {
             number: 4,
             indentation: 0,
             tokens: vec![Token::Name(String::from("foo"))],
@@ -514,19 +517,18 @@ fn test_function_nonpure_no_args() {
     let result = parse(Box::new(lines.into_iter())).unwrap();
     assert_eq!(
         result,
-        Scope {
+        Scope::NonPure {
             assignments: vec![(
                 String::from("foo"),
                 Rc::new(Expression::Value(Value::Function {
-                    pure: false,
                     params: vec![],
-                    scope: Box::new(Scope {
+                    scope: Box::new(Scope::NonPure {
                         assignments: vec![],
-                        expression: Rc::new(Expression::Name(String::from("foo")))
+                        statements: vec![Rc::new(Expression::Name(String::from("foo"))), Rc::new(Expression::Name(String::from("bar")))]
                     })
                 })
             ))],
-            expression: Rc::new(Expression::Name(String::from("foo")))
+            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
     );
 }
@@ -578,25 +580,25 @@ fn test_if_else() {
     let result = parse(Box::new(lines.into_iter())).unwrap();
     assert_eq!(
         result,
-        Scope {
+        Scope::NonPure {
             assignments: vec![(
                 String::from("foo"),
                 Rc::new(Expression::If {
                     condition: Rc::new(Expression::Name(String::from("bar"))),
-                    then_scope: Box::new(Scope {
+                    then_scope: Box::new(Scope::Pure {
                         assignments: vec![(
                             String::from("foo"),
                             Rc::new(Expression::Value(Value::Boolean(true))
                         ))],
                         expression: Rc::new(Expression::Name(String::from("foo")))
                     }),
-                    else_scope: Box::new(Scope {
+                    else_scope: Box::new(Scope::Pure {
                         assignments: vec![],
                         expression: Rc::new(Expression::Value(Value::Number(Number::Float(12.3))))
                     })
                 }
             ))],
-            expression: Rc::new(Expression::Name(String::from("foo")))
+            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
     );
 }

@@ -4,6 +4,7 @@ mod tests;
 use std::iter::Peekable;
 use std::rc::Rc;
 use std::slice::Iter;
+use std::vec;
 
 use crate::lexer::*;
 use crate::parser::enums::*;
@@ -256,22 +257,25 @@ fn parse_expression(
         }
         Token::Read => Expression::ReadCall,
         Token::NonPure => {
-            let function_expr = parse_expression(tokens, line_num, next_lines, indentation)?;
-            match function_expr {
-                Expression::Value(Value::Function { pure: _, params, scope }) => {
-                    Expression::Value(Value::Function {
-                        pure: false,
-                        params,
-                        scope,
-                    })
-                }
-                _ => return Err(ParserError::FunctionExpected { line: line_num }),
+            let mut params = Vec::new();
+            if let Some(Token::LeftBoxBracket) = tokens.peek() {
+                tokens.next().unwrap();
+                params = parse_param_list(tokens, line_num)?;
             }
+            assert_next_token!(
+                tokens,
+                Token::Arrow,
+                ParserError::ArrowExpected { line: line_num }
+            );
+            let scope = Box::new(parse_scope(next_lines, indentation.into(), false)?);
+            Expression::Value(Value::Function {
+                params,
+                scope,
+            })
         }
         Token::Arrow => {
-            let scope = Box::new(parse_scope(next_lines, indentation.into())?);
+            let scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
             Expression::Value(Value::Function {
-                pure: true,
                 params: vec![],
                 scope,
             })
@@ -283,9 +287,8 @@ fn parse_expression(
                 Token::Arrow,
                 ParserError::ArrowExpected { line: line_num }
             );
-            let scope = Box::new(parse_scope(next_lines, indentation.into())?);
+            let scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
             Expression::Value(Value::Function {
-                pure: true,
                 params,
                 scope,
             })
@@ -299,7 +302,7 @@ fn parse_expression(
                 ParserError::ThenExpected { line: line_num }
             );
             
-            let then_scope = Box::new(parse_scope(next_lines, indentation.into())?);
+            let then_scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
             let line = next_lines
                 .next()
                 .ok_or(ParserError::UnexpectedEOF)?
@@ -318,7 +321,7 @@ fn parse_expression(
                 ParserError::ElseExpected { line: line_num }
             );
 
-            let else_scope = Box::new(parse_scope(next_lines, indentation.into())?);
+            let else_scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
             Expression::If {
                 condition,
                 then_scope,
@@ -389,45 +392,48 @@ fn parse_line(
 
 fn handle_line(
     line: &Line,
-    expression: &Option<Expression>,
+    expressions: &mut Vec<Expression>,
     assignments: &mut Vec<(String, Rc<Expression>)>,
     next_lines: &mut Peekable<LinesIterator>,
     indentation: u16,
-) -> Result<Option<Expression>, ParserError> {
+    pure: bool,
+) -> Result<(), ParserError> {
     match parse_line(line, next_lines, indentation)? {
-        FunctionLine::Expression(exp) => match expression {
-            Some(_) => {
+        FunctionLine::Expression(exp) => {
+            if pure && expressions.len() > 0 {
                 return Err(ParserError::ReturnExpressionError {
                     line: line.number,
-                    msg: String::from("A scope can only have 1 expression!"),
+                    msg: String::from("A pure scope can only have 1 expression!"),
                 })
-            }
-            None => {
-                return Ok(Some(exp));
-            }
+            } else {
+                expressions.push(exp);
+                Ok(())
+            }            
         },
-        FunctionLine::Assignment(string, exp) => match expression {
-            Some(_) => {
+        FunctionLine::Assignment(string, exp) => {
+            if pure && expressions.len() == 1 {
                 return Err(ParserError::ReturnExpressionError {
                     line: line.number,
                     msg: String::from(
-                        "Cannot have assignments after expression in a single scope!",
+                        "Cannot have assignments after expression in a single pure scope!",
                     ),
                 })
+            } else {
+                assignments.push((string, Rc::new(exp)));
+                Ok(())
             }
-            None => assignments.push((string, Rc::new(exp))),
         },
-        FunctionLine::Empty => (),
-    };
-    Ok(None)
+        FunctionLine::Empty => Ok(()),
+    }
 }
 
 fn parse_scope(
     lines: &mut Peekable<LinesIterator>,
     outside_indentation: i32,
+    pure: bool,
 ) -> Result<Scope, ParserError> {    
     let mut assignments = Vec::<(String, Rc<Expression>)>::new();
-    let mut expression: Option<Expression> = None;
+    let mut expressions: Vec<Expression> = vec![];
     let mut last_line_number;
 
     let line = lines
@@ -446,17 +452,15 @@ fn parse_scope(
             actual: outside_indentation,
         });
     }
-    
 
-    if let Some(exp) = handle_line(
+    handle_line(
         &line,
-        &mut expression,
+        &mut expressions,
         &mut assignments,
         lines,
         scope_indentation,
-    )? {
-        expression = Some(exp);
-    }
+        pure
+    )?;
 
     while let Some(line_result) = lines.peek() {
         let next_line = line_result.as_ref().map_err(|_| ParserError::PeekError)?;
@@ -477,33 +481,32 @@ fn parse_scope(
             // scope has not ended and has valid indentation
             let line = lines.next().unwrap().map_err(|_| ParserError::LexerError)?;
 
-            if let Some(exp) = handle_line(
+            handle_line(
                 &line,
-                &mut expression,
+                &mut expressions,
                 &mut assignments,
                 lines,
                 scope_indentation,
-            )? {
-                expression = Some(exp);
-            }
+                pure
+            )?;
         }
     }
 
-    match expression {
-        Some(expression) => Ok(Scope {
-            assignments,
-            expression: Rc::new(expression),
-        }),
-        None => Err(ParserError::ExpressionExpected { line: last_line_number }),
+    if pure {
+        if expressions.len() == 0 {
+            Err(ParserError::ExpressionExpected { line: last_line_number })
+        } else {
+            if expressions.len() != 1 {
+                panic!("Expressions must be no more than one in pure scope");
+            }
+            Ok(Scope::Pure { assignments, expression: Rc::new(expressions.pop().unwrap()) })
+        }
+    } else {
+        Ok(Scope::NonPure { assignments, statements: expressions.into_iter().map(Rc::new).collect() })
     }
 }
 
 pub fn parse(lines: LinesIterator) -> Result<Scope, ParserError> {
     let mut lines = lines.peekable();
-    let function_body = parse_scope(&mut lines, -1)?;
-
-    Ok(Scope {
-        assignments: function_body.assignments,
-        expression: function_body.expression,
-    })
+    parse_scope(&mut lines, -1, false)
 }

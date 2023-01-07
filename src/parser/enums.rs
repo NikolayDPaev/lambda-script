@@ -1,9 +1,15 @@
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Scope {
-    pub assignments: Vec<(String, Rc<Expression>)>,
-    pub expression: Rc<Expression>,
+pub enum Scope {
+    Pure{
+        assignments: Vec<(String, Rc<Expression>)>,
+        expression: Rc<Expression>,
+    },
+    NonPure{
+        assignments: Vec<(String, Rc<Expression>)>,
+        statements: Vec<Rc<Expression>>,
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -21,20 +27,19 @@ pub enum Value {
     Error(String),
     Tuple(Box<Value>, Box<Value>),
     Function {
-        pure: bool,
         params: Vec<String>,
         scope: Box<Scope>,
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BoolBinOp {
     And,
     Or,
     Xor,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum NumberBinOp {
     Plus,
     Minus,
@@ -44,7 +49,7 @@ pub enum NumberBinOp {
     Modulo,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CmpBinOp {
     Eq,
     Lt,
@@ -53,14 +58,14 @@ pub enum CmpBinOp {
     GEq,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BinaryOp {
     Boolean(BoolBinOp),
     Number(NumberBinOp),
     Compare(CmpBinOp),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum UnaryOp {
     Negation,
     Minus,
