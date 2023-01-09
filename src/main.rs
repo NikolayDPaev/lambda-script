@@ -2,6 +2,7 @@ use std::{env, fs::File, path};
 
 use lexer::lines;
 use parser::parse;
+use evaluator::*;
 
 mod evaluator;
 mod lexer;
@@ -18,7 +19,12 @@ fn main() {
     let lines = lines(file);
     let scope = parse(lines);
     match scope {
-        Ok(s) => println!("{:?}", s),
+        Ok(s) => {
+            //println!("{:?}", s);
+            let mut evaluator = Evaluator::new();
+            println!("{:?}", evaluator.eval_outside_scope(&s));
+            
+        }
         Err(e) => println!("{:?}", e),
     };
 }

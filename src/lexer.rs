@@ -37,9 +37,11 @@ pub enum Op {
     Plus,
     Minus,
     Division,
+    IntDivision,
     Multiplication,
     Exponentiation,
     Modulo,
+    NEq,
     Eq,
     Lt,
     Gt,
@@ -202,7 +204,12 @@ impl Line {
             } else if ch == ',' {
                 tokens.push(Token::Comma);
             } else if ch == '!' {
-                tokens.push(Token::Operation(Op::Negation));
+                if matches!(iter.peek(), Some(x) if *x == '=') {
+                    iter.next();
+                    tokens.push(Token::Operation(Op::NEq));
+                } else {
+                    tokens.push(Token::Operation(Op::Negation));
+                }
             } else if ch == '&' {
                 tokens.push(Token::Operation(Op::And));
             } else if ch == '|' {
@@ -211,8 +218,13 @@ impl Line {
                 tokens.push(Token::Operation(Op::Xor));
             } else if ch == '+' {
                 tokens.push(Token::Operation(Op::Plus));
-            } else if ch == '/' {
-                tokens.push(Token::Operation(Op::Division));
+            }else if ch == '/' {
+                if matches!(iter.peek(), Some(x) if *x == '/') {
+                    iter.next();
+                    tokens.push(Token::Operation(Op::IntDivision));
+                } else {
+                    tokens.push(Token::Operation(Op::Division));
+                }
             } else if ch == '%' {
                 tokens.push(Token::Operation(Op::Modulo));
             }
@@ -252,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_all_lexemes_line() {
-        let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / * ** % == < > <= >= true false if else then = -> ( ) , [ ] nonpure cons left right nil read print";
+        let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / // * ** % == != < > <= >= true false if else then = -> ( ) , [ ] nonpure cons left right nil read print";
         let lines = lines(lexemes.as_bytes()).collect::<Vec<_>>();
         assert_eq!(lines.len(), 1);
         let line = lines[0].as_ref().unwrap();
@@ -273,10 +285,12 @@ mod tests {
             Token::Operation(Op::Plus),
             Token::Operation(Op::Minus),
             Token::Operation(Op::Division),
+            Token::Operation(Op::IntDivision),
             Token::Operation(Op::Multiplication),
             Token::Operation(Op::Exponentiation),
             Token::Operation(Op::Modulo),
             Token::Operation(Op::Eq),
+            Token::Operation(Op::NEq),
             Token::Operation(Op::Lt),
             Token::Operation(Op::Gt),
             Token::Operation(Op::LEq),

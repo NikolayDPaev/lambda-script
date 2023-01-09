@@ -1,13 +1,7 @@
-sum = [a, b, c] ->
-    prod = [a, b] -> 
-        a + b
-    prod(a, b + c)
+length = [list] ->
+    if list == nil then
+        0
+    else 
+        1 + length(left(list))
 
-a = 55
-
-main = nonpure ->
-    c = read()
-    result = sum(2, 3, c)
-    print(result)
-
-main
+print(length("abcd"))

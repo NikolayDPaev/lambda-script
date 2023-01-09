@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, cmp::Ordering};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Scope {
@@ -16,6 +16,35 @@ pub enum Scope {
 pub enum Number {
     Float(f64),
     Integer(i32),
+}
+
+impl PartialOrd for Number {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for Number {}
+
+fn float_cmp(val_1: &f64, val_2: &f64) -> Ordering {
+    if (val_1 - val_2).abs() < f64::EPSILON {
+        Ordering::Equal
+    } else if val_1 - val_2 > f64::EPSILON {
+        Ordering::Greater
+    } else {
+        Ordering::Less
+    }
+}
+
+impl Ord for Number {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Number::Float(a), Number::Float(b)) => float_cmp(a, b),
+            (Number::Float(a), Number::Integer(b)) => float_cmp(a, &(*b as f64)),
+            (Number::Integer(a), Number::Float(b)) => float_cmp(&(*a as f64), b),
+            (Number::Integer(a), Number::Integer(b)) => a.cmp(b),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -40,10 +69,11 @@ pub enum BoolBinOp {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum NumberBinOp {
+pub enum ArithBinOp {
     Plus,
     Minus,
     Division,
+    IntDivision,
     Multiplication,
     Exponentiation,
     Modulo,
@@ -52,6 +82,7 @@ pub enum NumberBinOp {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CmpBinOp {
     Eq,
+    NEq,
     Lt,
     Gt,
     LEq,
@@ -61,7 +92,7 @@ pub enum CmpBinOp {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BinaryOp {
     Boolean(BoolBinOp),
-    Number(NumberBinOp),
+    Arithmetic(ArithBinOp),
     Compare(CmpBinOp),
 }
 

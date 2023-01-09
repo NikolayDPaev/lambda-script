@@ -1,29 +1,22 @@
+mod operations;
 use by_address::ByAddress;
-use rpds::HashTrieMap;
+use rpds::{HashTrieMap, Stack};
+use std::result;
 use std::{collections::HashMap, rc::Rc};
 
+use crate::evaluator::operations::*;
 use crate::parser::enums::*;
 
+#[derive(Debug)]
 pub enum EvaluatorError {
     UnknownName(Rc<Expression>),
     FunctionExpected(Rc<Expression>),
     ArgsAndParamsLensMismatch(Rc<Expression>),
-    CallingNonPureFunctionInPureScope(Rc<Expression>),
-    UndefinedOperation { msg: String, expr: Rc<Expression> },
+    InvalidOperation { msg: String, expr: Rc<Expression> },
     SideEffectInPureScope (Rc<Expression>),
     ConditionShouldEvaluateToBoolean(Rc<Expression>),
-}
-
-fn print(value: Value) {
-    todo!()
-}
-
-fn eval_unary_op(op: UnaryOp, value: Value) -> Result<Value, EvaluatorError> {
-    todo!()
-}
-
-fn eval_bin_op(op: BinaryOp, left: Value, right: Value) -> Result<Value, EvaluatorError> {
-    todo!()
+    ComparisonError{ op: CmpBinOp, value_1: Value, value_2: Value},
+    ArithmeticError{ op: ArithBinOp, value_1: Value, value_2: Value},
 }
 
 pub struct Evaluator {
@@ -40,8 +33,15 @@ macro_rules! add_outside_assignments {
     };
 }
 
-
 impl Evaluator {
+    pub fn new() -> Evaluator {
+        return Evaluator{memoization_map: HashMap::new()};
+    }
+
+    pub fn eval_outside_scope(&mut self, scope: &Scope) -> Result<Rc<Expression>, EvaluatorError> {
+        self.eval_scope(scope, HashTrieMap::new())
+    }
+
     fn end_eval(&mut self,
         expr: Rc<Expression>,
         assignments: HashTrieMap<String, Rc<Expression>>,
@@ -52,9 +52,11 @@ impl Evaluator {
             if let Expression::Value(value) = expression.as_ref() {
                return Ok(value.clone())
             }
+
             expression = self.eval_expression(expression, assignments.clone(), memoize)?
         }
     }
+
     pub fn eval_scope(
         &mut self,
         scope: &Scope,
@@ -84,14 +86,14 @@ impl Evaluator {
         memoize: bool,
     ) -> Result<Rc<Expression>, EvaluatorError> {
         if let Some(value) = self.memoization_map.get(&ByAddress(expr.clone())) {
+            println!("using memoization for: {:?}", value);
             return Ok(Rc::new(Expression::Value(value.clone())));
         } else {
-            Ok(match expr.as_ref() {
+            println!("evaluation for: {:?}", expr);
+            println!();
+            
+            let result = match expr.as_ref() {
                 Expression::Value(v) => {
-                    if memoize {
-                        self.memoization_map
-                            .insert(ByAddress(expr.clone()), v.clone());
-                    }
                     expr.clone()
                 }
                 Expression::Name(string) => {
@@ -102,19 +104,17 @@ impl Evaluator {
                     }
                 }
                 Expression::FunctionCall { name, args } => {
-                    let evaluated_name =
-                        self.eval_expression(name.clone(), assignments.clone(), memoize)?;
-                    match evaluated_name.as_ref() {
+                    match name.as_ref() {
                         Expression::Value(Value::Function {
                             params,
                             scope,
                         }) => {
                             if memoize && matches!(scope.as_ref(), Scope::NonPure { .. }) {
-                                return Err(EvaluatorError::SideEffectInPureScope(evaluated_name.clone()))
+                                return Err(EvaluatorError::SideEffectInPureScope(name.clone()))
                             }
                             if args.len() != params.len() {
                                 return Err(EvaluatorError::ArgsAndParamsLensMismatch(
-                                    evaluated_name.clone(),
+                                    name.clone(),
                                 ));
                             }
                             let assignments = params
@@ -126,12 +126,15 @@ impl Evaluator {
                             self.eval_scope(&*scope, assignments)?
                         }
                         Expression::Value(_) => {
-                            return Err(EvaluatorError::FunctionExpected(evaluated_name.clone()));
+                            return Err(EvaluatorError::FunctionExpected(name.clone()));
                         }
-                        _ => Rc::new(Expression::FunctionCall {
-                            name: evaluated_name,
-                            args: args.clone(),
-                        }),
+                        _ => {
+                            let evaluated_name = self.eval_expression(name.clone(), assignments, memoize)?;
+                            Rc::new(Expression::FunctionCall {
+                                name: evaluated_name,
+                                args: args.clone(),
+                            })
+                        }
                     }
                 }
                 Expression::ReadCall => {
@@ -142,7 +145,8 @@ impl Evaluator {
                 },
                 Expression::PrintCall(expr) => {
                     let value = self.end_eval(expr.clone(), assignments, memoize)?;
-                    print(value);
+                    print(&value);
+                    println!();
                     Rc::new(Expression::Value(Value::Nil))
                 },
                 Expression::Cons(left, right) => match (left.as_ref(), right.as_ref()) {
@@ -157,8 +161,8 @@ impl Evaluator {
                         self.eval_expression(right.clone(), assignments, memoize)?,
                     )),
                     (_, Expression::Value(_)) => Rc::new(Expression::Cons(
-                        self.eval_expression(right.clone(), assignments, memoize)?,
-                        left.clone(),
+                        self.eval_expression(left.clone(), assignments, memoize)?,
+                        right.clone(),
                     )),
                     (_, _) => Rc::new(Expression::Cons(
                         self.eval_expression(left.clone(), assignments.clone(), memoize)?,
@@ -171,14 +175,14 @@ impl Evaluator {
                         Rc::new(Expression::Value(*left.clone()))
                     }
                     Expression::Value(_) => {
-                        return Err(EvaluatorError::UndefinedOperation {
+                        return Err(EvaluatorError::InvalidOperation {
                             msg: String::from("Left is defined only for cons and tuple"),
                             expr: expr.clone(),
                         })
                     }
                     _ => Rc::new(Expression::Left(self.eval_expression(
-                        expr,
-                        assignments,
+                        inside_expr.clone(),
+                        assignments, 
                         memoize,
                     )?)),
                 },
@@ -188,31 +192,31 @@ impl Evaluator {
                         Rc::new(Expression::Value(*right.clone()))
                     }
                     Expression::Value(_) => {
-                        return Err(EvaluatorError::UndefinedOperation {
+                        return Err(EvaluatorError::InvalidOperation {
                             msg: String::from("Right is defined only for cons and tuple"),
                             expr: expr.clone(),
                         })
                     }
                     _ => Rc::new(Expression::Right(self.eval_expression(
-                        expr,
-                        assignments,
+                        inside_expr.clone(),
+                        assignments, 
                         memoize,
                     )?)),
                 },
                 Expression::UnaryOperation(op, inside_expr) => match inside_expr.as_ref() {
                     Expression::Value(value) => {
-                        Rc::new(Expression::Value(eval_unary_op(*op, value.clone())?))
+                        Rc::new(Expression::Value(eval_unary_op(*op, value)?))
                     },
                     _ => Rc::new(Expression::UnaryOperation(*op,
                         self.eval_expression(
-                        expr,
-                        assignments,
+                        inside_expr.clone(),
+                        assignments, 
                         memoize,
                     )?)),
                 },
                 Expression::BinaryOperation(op, left, right) => match (left.as_ref(), right.as_ref()) {
                     (Expression::Value(left), Expression::Value(right)) => {
-                        Rc::new(Expression::Value(eval_bin_op(*op, left.clone(), right.clone())?))
+                        Rc::new(Expression::Value(eval_bin_op(*op, left, right)?))
                     }
                     (Expression::Value(_), _) => Rc::new(Expression::BinaryOperation(
                         *op,
@@ -221,8 +225,8 @@ impl Evaluator {
                     )),
                     (_, Expression::Value(_)) => Rc::new(Expression::BinaryOperation(
                         *op,
-                        self.eval_expression(right.clone(), assignments, memoize)?,
-                        left.clone(),
+                        self.eval_expression(left.clone(), assignments, memoize)?,
+                        right.clone(),
                     )),
                     (_, _) => Rc::new(Expression::BinaryOperation(
                         *op,
@@ -235,20 +239,20 @@ impl Evaluator {
                     then_scope,
                     else_scope,
                 } => {
-                    match condition.as_ref() {
-                        Expression::Value(Value::Boolean(true)) => {                            
-                            self.eval_scope(&**then_scope, assignments)?
+                    match self.end_eval(condition.clone(), assignments.clone(), memoize)? {
+                        Value::Boolean(true) => {                            
+                            self.eval_scope(&**then_scope, assignments, )?
                         },
-                        Expression::Value(Value::Boolean(false)) => {
-                            self.eval_scope(&**else_scope, assignments)?
+                        Value::Boolean(false) => {
+                            self.eval_scope(&**else_scope, assignments, )?
                         },
-                        Expression::Value(_) => {
+                        _ => {
                             return Err(EvaluatorError::ConditionShouldEvaluateToBoolean(expr.clone()))
-                        },
-                        _ => Rc::new(Expression::If { condition: self.eval_expression(condition.clone(), assignments, memoize)?, then_scope: then_scope.clone(), else_scope: else_scope.clone() })
+                        }
                     }
                 },
-            })
+            };
+            Ok(result)
         }
     }
 }

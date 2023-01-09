@@ -201,7 +201,7 @@ fn test_operation() {
             Token::RightBracket,
         ],
         Expression::BinaryOperation(
-            BinaryOp::Number(NumberBinOp::Plus),
+            BinaryOp::Arithmetic(ArithBinOp::Plus),
             Rc::new(Expression::FunctionCall {
                 name: Rc::new(Expression::Name(String::from("foo"))),
                 args: vec![
@@ -237,7 +237,7 @@ fn test_multiple_operation() {
             Token::Name(String::from("b")),
         ],
         Expression::BinaryOperation(
-            BinaryOp::Number(NumberBinOp::Plus),
+            BinaryOp::Arithmetic(ArithBinOp::Plus),
             Rc::new(Expression::Name(String::from("a"))),
             Rc::new(Expression::BinaryOperation(
                 BinaryOp::Compare(CmpBinOp::Lt),
@@ -281,7 +281,7 @@ fn test_brackets_expression() {
         Expression::BinaryOperation(
             BinaryOp::Compare(CmpBinOp::GEq),
             Rc::new(Expression::BinaryOperation(
-                BinaryOp::Number(NumberBinOp::Plus),
+                BinaryOp::Arithmetic(ArithBinOp::Plus),
                 Rc::new(Expression::Name(String::from("a"))),
                 Rc::new(Expression::FunctionCall {
                     name: Rc::new(Expression::Name(String::from("foo"))),
@@ -292,10 +292,10 @@ fn test_brackets_expression() {
                 }),
             )),
             Rc::new(Expression::BinaryOperation(
-                BinaryOp::Number(NumberBinOp::Plus),
+                BinaryOp::Arithmetic(ArithBinOp::Plus),
                 Rc::new(Expression::Name(String::from("b"))),
                 Rc::new(Expression::BinaryOperation(
-                    BinaryOp::Number(NumberBinOp::Minus),
+                    BinaryOp::Arithmetic(ArithBinOp::Minus),
                     Rc::new(Expression::Name(String::from("c"))),
                     Rc::new(Expression::Name(String::from("d"))),
                 )),

@@ -34,23 +34,27 @@ fn parse_binary_operation(
         Op::And => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::And), expr_1, expr_2),
         Op::Or => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::Or), expr_1, expr_2),
         Op::Xor => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::Xor), expr_1, expr_2),
-        Op::Plus => new_binary_operation!(BinaryOp::Number(NumberBinOp::Plus), expr_1, expr_2),
-        Op::Minus => new_binary_operation!(BinaryOp::Number(NumberBinOp::Minus), expr_1, expr_2),
+        Op::Plus => new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Plus), expr_1, expr_2),
+        Op::Minus => new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Minus), expr_1, expr_2),
         Op::Division => {
-            new_binary_operation!(BinaryOp::Number(NumberBinOp::Division), expr_1, expr_2)
+            new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Division), expr_1, expr_2)
+        }
+        Op::IntDivision => {
+            new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::IntDivision), expr_1, expr_2)
         }
         Op::Multiplication => new_binary_operation!(
-            BinaryOp::Number(NumberBinOp::Multiplication),
+            BinaryOp::Arithmetic(ArithBinOp::Multiplication),
             expr_1,
             expr_2
         ),
         Op::Exponentiation => new_binary_operation!(
-            BinaryOp::Number(NumberBinOp::Exponentiation),
+            BinaryOp::Arithmetic(ArithBinOp::Exponentiation),
             expr_1,
             expr_2
         ),
-        Op::Modulo => new_binary_operation!(BinaryOp::Number(NumberBinOp::Modulo), expr_1, expr_2),
+        Op::Modulo => new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Modulo), expr_1, expr_2),
         Op::Eq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Eq), expr_1, expr_2),
+        Op::NEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::NEq), expr_1, expr_2),
         Op::Lt => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Lt), expr_1, expr_2),
         Op::Gt => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Gt), expr_1, expr_2),
         Op::LEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::LEq), expr_1, expr_2),
@@ -466,10 +470,10 @@ fn parse_scope(
         let next_line = line_result.as_ref().map_err(|_| ParserError::PeekError)?;
         last_line_number = next_line.number;
     
-        if next_line.indentation as i32 == outside_indentation {
+        if next_line.indentation < scope_indentation && next_line.indentation as i32 <= outside_indentation {
             // end of scope
             break;
-        } else if next_line.indentation != scope_indentation && outside_indentation > 0 {
+        } else if outside_indentation > 0 {
             // scope has not ended yet but has different indentation
             return Err(ParserError::IndentationError {
                 line: last_line_number,
