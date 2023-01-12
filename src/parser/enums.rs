@@ -1,5 +1,7 @@
 use std::{rc::Rc, cmp::Ordering};
 
+use rpds::HashTrieMap;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Scope {
     Pure{
@@ -106,6 +108,7 @@ pub enum UnaryOp {
 pub enum Expression {
     Value(Value),
     Name(String),
+    Thunk(Rc<Expression>, HashTrieMap<String, Rc<Expression>>),
     FunctionCall {
         name: Rc<Expression>,
         args: Vec<Rc<Expression>>,
