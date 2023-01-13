@@ -130,7 +130,7 @@ impl Evaluator {
                 }
                 Expression::Name(string) => {
                     if let Some(expr) = assignments.get(string) {
-                       expr.clone()
+                        expr.clone()
                     } else {
                         return Err(EvaluatorError::UnknownName(expr));
                     }
@@ -151,7 +151,11 @@ impl Evaluator {
                                 |acc, (string, expr)| {
                                     acc.insert(
                                         string.clone(),
-                                        make_thunk!(expr, assignments, matches!(scope.as_ref(), Scope::NonPure { .. })),
+                                        make_thunk!(
+                                            expr,
+                                            assignments,
+                                            matches!(scope.as_ref(), Scope::NonPure { .. })
+                                        ),
                                     )
                                 },
                             );
@@ -180,7 +184,7 @@ impl Evaluator {
                             Box::new(left.clone()),
                             Box::new(right.clone()),
                         )))
-                    },
+                    }
                     (Expression::Value(_), Expression::Thunk(..)) => Rc::new(Expression::Cons(
                         left.clone(),
                         self.eval_expression(right.clone(), assignments, memoize)?,
@@ -240,6 +244,22 @@ impl Evaluator {
                         memoize,
                     )?)),
                 },
+                Expression::Empty(inside_expr) => match inside_expr.as_ref() {
+                    Expression::Value(Value::Nil) => Rc::new(Expression::Value(Value::Boolean(true))),
+                    Expression::Cons(_, _) => Rc::new(Expression::Value(Value::Boolean(false))),
+                    Expression::Value(Value::Tuple(_, _)) => Rc::new(Expression::Value(Value::Boolean(false))),
+                    Expression::Value(_) => {
+                        return Err(EvaluatorError::InvalidOperation {
+                            msg: String::from("Empty is defined only for cons and tuple"),
+                            expr: expr.clone(),
+                        })
+                    }
+                    _ => Rc::new(Expression::Empty(self.eval_expression(
+                        inside_expr.clone(),
+                        assignments,
+                        memoize,
+                    )?)),
+                },
                 Expression::UnaryOperation(op, inside_expr) => match inside_expr.as_ref() {
                     Expression::Value(value) => {
                         Rc::new(Expression::Value(eval_unary_op(*op, value)?))
@@ -250,6 +270,13 @@ impl Evaluator {
                     )),
                 },
                 Expression::BinaryOperation(op, left, right) => {
+                    // if matches!(op, BinaryOp::Compare(CmpBinOp::Eq)) {
+                    //     match (left.as_ref(), right.as_ref()) {
+                    //         (Expression::Cons(..), Expression::Value(Value::Nil)) => return Ok(Rc::new(Expression::Value(Value::Boolean(false)))),
+                    //         (Expression::Thunk(_, _, _), Expression::Value(Value::Nil)) => return Ok(Rc::new(Expression::BinaryOperation(*op, self.eval_expression(left.clone(), assignments.clone(), memoize)?, right.clone()))),
+                    //         _ => ()
+                    //     }
+                    // }
                     Rc::new(Expression::Value(eval_bin_op(
                         *op,
                         &self.end_eval(left.clone(), assignments.clone(), memoize)?,
@@ -281,8 +308,12 @@ impl Evaluator {
                     then_scope,
                     else_scope,
                 } => match self.end_eval(condition.clone(), assignments.clone(), memoize)? {
-                    Value::Boolean(true) => self.eval_scope(&**then_scope, assignments)?,
-                    Value::Boolean(false) => self.eval_scope(&**else_scope, assignments)?,
+                    Value::Boolean(true) => {
+                        self.eval_scope(&**then_scope, assignments)?
+                    }
+                    Value::Boolean(false) => {
+                        self.eval_scope(&**else_scope, assignments)?
+                    }
                     _ => {
                         return Err(EvaluatorError::ConditionShouldEvaluateToBoolean(
                             expr.clone(),

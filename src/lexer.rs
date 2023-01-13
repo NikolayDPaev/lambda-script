@@ -23,6 +23,7 @@ pub enum Token {
     Cons,
     Left,
     Right,
+    Empty,
     Nil,
     Read,
     Print,
@@ -137,6 +138,8 @@ impl Line {
                     tokens.push(Token::Left);
                 } else if string == "right" {
                     tokens.push(Token::Right);
+                } else if string == "empty" {
+                    tokens.push(Token::Empty);
                 } else if string == "nil" {
                     tokens.push(Token::Nil);
                 } else if string == "read" {
@@ -265,7 +268,7 @@ mod tests {
 
     #[test]
     fn test_all_lexemes_line() {
-        let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / // * ** % == != < > <= >= true false if else then = -> ( ) , [ ] nonpure cons left right nil read print";
+        let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / // * ** % == != < > <= >= true false if else then = -> ( ) , [ ] nonpure cons left right empty nil read print";
         let lines = lines(lexemes.as_bytes()).collect::<Vec<_>>();
         assert_eq!(lines.len(), 1);
         let line = lines[0].as_ref().unwrap();
@@ -312,6 +315,7 @@ mod tests {
             Token::Cons,
             Token::Left,
             Token::Right,
+            Token::Empty,
             Token::Nil,
             Token::Read,
             Token::Print,

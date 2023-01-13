@@ -136,6 +136,7 @@ pub enum Expression {
     Cons(Rc<Expression>,Rc<Expression>),
     Left(Rc<Expression>),
     Right(Rc<Expression>),
+    Empty(Rc<Expression>),
     UnaryOperation(UnaryOp, Rc<Expression>),
     BinaryOperation(BinaryOp, Rc<Expression>, Rc<Expression>),
     If {

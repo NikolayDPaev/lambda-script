@@ -245,6 +245,20 @@ fn parse_expression(
             );
             Expression::Right(expr)
         }
+        Token::Empty => {
+            assert_next_token!(
+                tokens,
+                Token::LeftBracket,
+                ParserError::LeftBracketExpected { line: line_num }
+            );
+            let expr = Rc::new(parse_expression(tokens, line_num, next_lines, indentation)?);
+            assert_next_token!(
+                tokens,
+                Token::RightBracket,
+                ParserError::UnbalancedBracketsError { line: line_num }
+            );
+            Expression::Empty(expr)
+        }
         Token::Print => {
             assert_next_token!(
                 tokens,
@@ -272,7 +286,7 @@ fn parse_expression(
                 ParserError::ArrowExpected { line: line_num }
             );
             let scope = Box::new(parse_scope(next_lines, indentation.into(), false)?);
-            println!("{:?}", scope);
+            
             Expression::Value(Value::Function {
                 params,
                 scope,
@@ -293,7 +307,7 @@ fn parse_expression(
                 ParserError::ArrowExpected { line: line_num }
             );
             let scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
-            println!("{:?}", scope);
+            
             Expression::Value(Value::Function {
                 params,
                 scope,
@@ -309,7 +323,6 @@ fn parse_expression(
             );
             
             let then_scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
-            println!("{:?}", then_scope);
             let line = next_lines
                 .next()
                 .ok_or(ParserError::UnexpectedEOF)?
@@ -329,7 +342,6 @@ fn parse_expression(
             );
 
             let else_scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
-            println!("{:?}", else_scope);
             Expression::If {
                 condition,
                 then_scope,
@@ -406,7 +418,6 @@ fn handle_line(
     indentation: u16,
     pure: bool,
 ) -> Result<(), ParserError> {
-    println!("Handling line: {:?}", line);
     match parse_line(line, next_lines, indentation)? {
         FunctionLine::Expression(exp) => {
             if pure && expressions.len() > 0 {
@@ -451,10 +462,6 @@ fn parse_scope(
         .map_err(|_| ParserError::LexerError)?;
 
     last_line_number = line.number;
-
-    println!("line number: {}", line.number);
-    println!("scope indentation: {}", line.indentation);
-    println!("outside_indentation: {}", outside_indentation);
 
     let scope_indentation = line.indentation;   
     if scope_indentation as i32 <= outside_indentation {
