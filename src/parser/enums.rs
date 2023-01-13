@@ -124,6 +124,7 @@ pub enum Expression {
         Rc<Expression>,
         #[educe(Debug(method = "fmt"))]
         HashTrieMap<String, Rc<Expression>>,
+        #[educe(Debug(ignore))]
         bool,
     ),
     FunctionCall {

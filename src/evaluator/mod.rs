@@ -73,7 +73,6 @@ impl Evaluator {
     ) -> Result<Value, EvaluatorError> {
         let mut expression = expr;
         loop {
-            println!("evaluation for: {:?}", expression);
             if let Expression::Value(value) = expression.as_ref() {
                 return Ok(value.clone());
             }
@@ -94,7 +93,7 @@ impl Evaluator {
             } => {
                 let assignments_map = add_outside_assignments!(outside_assignments, assignments);
 
-                self.eval_expression(expression.clone(), assignments_map, true)
+                Ok(make_thunk!(expression.clone(), assignments_map, true))
             }
             Scope::NonPure {
                 assignments,
@@ -131,7 +130,7 @@ impl Evaluator {
                 }
                 Expression::Name(string) => {
                     if let Some(expr) = assignments.get(string) {
-                        self.eval_expression(expr.clone(), assignments, memoize)?
+                       expr.clone()
                     } else {
                         return Err(EvaluatorError::UnknownName(expr));
                     }
@@ -181,18 +180,30 @@ impl Evaluator {
                             Box::new(left.clone()),
                             Box::new(right.clone()),
                         )))
-                    }
-                    (Expression::Value(_), _) => Rc::new(Expression::Cons(
+                    },
+                    (Expression::Value(_), Expression::Thunk(..)) => Rc::new(Expression::Cons(
                         left.clone(),
                         self.eval_expression(right.clone(), assignments, memoize)?,
                     )),
-                    (_, Expression::Value(_)) => Rc::new(Expression::Cons(
+                    (Expression::Thunk(..), Expression::Value(_)) => Rc::new(Expression::Cons(
                         self.eval_expression(left.clone(), assignments, memoize)?,
                         right.clone(),
                     )),
-                    (_, _) => Rc::new(Expression::Cons(
+                    (Expression::Thunk(..), Expression::Thunk(..)) => Rc::new(Expression::Cons(
                         self.eval_expression(left.clone(), assignments.clone(), memoize)?,
                         self.eval_expression(right.clone(), assignments, memoize)?,
+                    )),
+                    (Expression::Value(_), _) => Rc::new(Expression::Cons(
+                        left.clone(),
+                        make_thunk!(right.clone(), assignments, memoize),
+                    )),
+                    (_, Expression::Value(_)) => Rc::new(Expression::Cons(
+                        make_thunk!(left.clone(), assignments, memoize),
+                        right.clone(),
+                    )),
+                    (_, _) => Rc::new(Expression::Cons(
+                        make_thunk!(left.clone(), assignments.clone(), memoize),
+                        make_thunk!(right.clone(), assignments, memoize),
                     )),
                 },
                 Expression::Left(inside_expr) => match inside_expr.as_ref() {

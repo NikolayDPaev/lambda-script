@@ -10,10 +10,7 @@ takeFirst = [n, list] ->
     else 
         cons(left(list), takeFirst(n - 1, right(list)))
 
-genNaturalsFromTo = [n, m] ->
-    if n == m then
-        nil
-    else
-        cons(n, genNaturalsFromTo(n + 1, m))
+genNaturalsFrom = [n] ->
+    cons(n, genNaturalsFrom(n + 1))
 
-print(takeFirst(1, genNaturalsFromTo(2, 4)))
+print(takeFirst(5, genNaturalsFrom(1)))
