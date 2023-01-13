@@ -49,6 +49,7 @@ pub enum Op {
     GEq,
 }
 
+#[derive(Debug)]
 pub struct Line {
     pub number: u32,
     pub indentation: u16,
@@ -58,7 +59,7 @@ pub struct Line {
 macro_rules! read_while_alphanumeric_into {
     ($iter:expr, $string:expr) => {
         while let Some(ch) = $iter.peek() {
-            if !ch.is_alphanumeric() && *ch != '.' {
+            if !ch.is_alphanumeric() && *ch != '.' && *ch != '_' && *ch != '-' {
                 break;
             } else {
                 $string.push(*ch);

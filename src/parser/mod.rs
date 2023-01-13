@@ -272,6 +272,7 @@ fn parse_expression(
                 ParserError::ArrowExpected { line: line_num }
             );
             let scope = Box::new(parse_scope(next_lines, indentation.into(), false)?);
+            println!("{:?}", scope);
             Expression::Value(Value::Function {
                 params,
                 scope,
@@ -292,6 +293,7 @@ fn parse_expression(
                 ParserError::ArrowExpected { line: line_num }
             );
             let scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
+            println!("{:?}", scope);
             Expression::Value(Value::Function {
                 params,
                 scope,
@@ -307,6 +309,7 @@ fn parse_expression(
             );
             
             let then_scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
+            println!("{:?}", then_scope);
             let line = next_lines
                 .next()
                 .ok_or(ParserError::UnexpectedEOF)?
@@ -314,7 +317,7 @@ fn parse_expression(
             if line.indentation != indentation {
                 return Err(ParserError::IndentationError {
                     line: line_num,
-                    msg: String::from("Indentation of \"then\" should be the same as \"if\"!"),
+                    msg: String::from("Indentation of else should be the same as if!"),
                     expected: indentation as i32,
                     actual: line.indentation as i32,
                 });
@@ -326,6 +329,7 @@ fn parse_expression(
             );
 
             let else_scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
+            println!("{:?}", else_scope);
             Expression::If {
                 condition,
                 then_scope,
@@ -402,6 +406,7 @@ fn handle_line(
     indentation: u16,
     pure: bool,
 ) -> Result<(), ParserError> {
+    println!("Handling line: {:?}", line);
     match parse_line(line, next_lines, indentation)? {
         FunctionLine::Expression(exp) => {
             if pure && expressions.len() > 0 {
@@ -447,6 +452,10 @@ fn parse_scope(
 
     last_line_number = line.number;
 
+    println!("line number: {}", line.number);
+    println!("scope indentation: {}", line.indentation);
+    println!("outside_indentation: {}", outside_indentation);
+
     let scope_indentation = line.indentation;   
     if scope_indentation as i32 <= outside_indentation {
         return Err(ParserError::IndentationError {
@@ -469,7 +478,7 @@ fn parse_scope(
     while let Some(line_result) = lines.peek() {
         let next_line = line_result.as_ref().map_err(|_| ParserError::PeekError)?;
         last_line_number = next_line.number;
-    
+
         if next_line.indentation < scope_indentation && next_line.indentation as i32 <= outside_indentation {
             // end of scope
             break;
@@ -484,7 +493,7 @@ fn parse_scope(
         } else {
             // scope has not ended and has valid indentation
             let line = lines.next().unwrap().map_err(|_| ParserError::LexerError)?;
-
+        
             handle_line(
                 &line,
                 &mut expressions,

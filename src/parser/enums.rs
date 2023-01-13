@@ -1,4 +1,4 @@
-use std::{rc::Rc, cmp::Ordering};
+use std::{rc::Rc, cmp::Ordering, fmt::{Formatter, self}};
 
 use rpds::HashTrieMap;
 
@@ -104,11 +104,28 @@ pub enum UnaryOp {
     Minus,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+fn fmt(tree: &HashTrieMap<String, Rc<Expression>>, f: &mut Formatter) -> fmt::Result {
+    write!(f, "{:?}", tree.iter().filter(|(_, expr)| {
+        match expr.as_ref() {
+            Expression::Value(Value::Function { .. }) => false,
+            Expression::Value(_) => true,
+            _ => false,
+        }
+    }).collect::<Vec<_>>())
+}
+
+#[derive(Educe)]
+#[educe(Debug)]
+#[derive(PartialEq, Clone)]
 pub enum Expression {
     Value(Value),
     Name(String),
-    Thunk(Rc<Expression>, HashTrieMap<String, Rc<Expression>>),
+    Thunk(
+        Rc<Expression>,
+        #[educe(Debug(method = "fmt"))]
+        HashTrieMap<String, Rc<Expression>>,
+        bool,
+    ),
     FunctionCall {
         name: Rc<Expression>,
         args: Vec<Rc<Expression>>,

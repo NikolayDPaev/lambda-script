@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 rpds = "0.12.0"
 by_address = "1.1.0"
+educe = "0.4.20"

@@ -1,4 +1,5 @@
 use std::{env, fs::File, path};
+#[macro_use] extern crate educe;
 
 use lexer::lines;
 use parser::parse;
@@ -20,7 +21,7 @@ fn main() {
     let scope = parse(lines);
     match scope {
         Ok(s) => {
-            //println!("{:?}", s);
+            println!("{:?}", s);
             let mut evaluator = Evaluator::new();
             println!("{:?}", evaluator.eval_outside_scope(&s));
             
