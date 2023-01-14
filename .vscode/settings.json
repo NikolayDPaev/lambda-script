@@ -4,5 +4,8 @@
         "peekable",
         "rpds",
         "Unpure"
-    ]
+    ],
+    "files.watcherExclude": {
+        "**/target": true
+    }
 }

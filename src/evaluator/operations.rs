@@ -41,7 +41,6 @@ pub fn print(value: &Value) {
         Value::Number(Number::Float(f)) => print!("{}", f),
         Value::Number(Number::Integer(i)) => print!("{}", i),
         Value::Char(char) => print!("\'{}\'", char),
-        Value::Error(str) => print!("Error: {}", str),
         Value::Tuple(left, right) => {
             if let Some(string) = try_string(value) {
                 print!("\"{}\"", string);
@@ -109,7 +108,8 @@ fn eval_cmp_op(op: CmpBinOp, left: &Value, right: &Value) -> Result<Value, Evalu
                 (Value::Nil, _) => Ok(Value::Boolean(false)),
                 (Value::Number(a,), Value::Number(b)) => Ok(Value::Boolean(*a == *b)),
                 (Value::Char(a), Value::Char(b)) => Ok(Value::Boolean(*a == *b)),
-                (Value::Error(a), Value::Error(b)) => Ok(Value::Boolean(*a == *b)),
+                (Value::Char(a), Value::Number(b)) => Ok(Value::Boolean(Number::Integer(*a as i32) == *b)),
+                (Value::Number(a), Value::Char(b)) => Ok(Value::Boolean(*a == Number::Integer(*b as i32))),
                 (Value::Tuple(a1, b1), Value::Tuple(a2, b2)) => {
                     let left = eval_cmp_op(op, a1.as_ref(), a2.as_ref())?;
                     let right = eval_cmp_op(op, b1.as_ref(), b2.as_ref())?;
@@ -118,7 +118,6 @@ fn eval_cmp_op(op: CmpBinOp, left: &Value, right: &Value) -> Result<Value, Evalu
                 (Value::Boolean(_), _) => cmp_error!(op, left.clone(), right.clone()),
                 (Value::Number(_), _) => cmp_error!(op, left.clone(), right.clone()),
                 (Value::Char(_), _) => cmp_error!(op, left.clone(), right.clone()),
-                (Value::Error(_), _) => cmp_error!(op, left.clone(), right.clone()),
                 (Value::Tuple(..), ..) => cmp_error!(op, left.clone(), right.clone()),
                 (Value::Function{ .. },..) => cmp_error!(op, left.clone(), right.clone()),
             }
@@ -130,20 +129,28 @@ fn eval_cmp_op(op: CmpBinOp, left: &Value, right: &Value) -> Result<Value, Evalu
         CmpBinOp::Lt => match (left, right) {
             (Value::Number(a,), Value::Number(b)) => Ok(Value::Boolean(*a < *b)),
             (Value::Char(a), Value::Char(b)) => Ok(Value::Boolean(*a < *b)),
+            (Value::Char(a), Value::Number(b)) => Ok(Value::Boolean(Number::Integer(*a as i32) < *b)),
+            (Value::Number(a), Value::Char(b)) => Ok(Value::Boolean(*a < Number::Integer(*b as i32))),
             (..) => cmp_error!(op, left.clone(), right.clone()),
         },
         CmpBinOp::Gt => match (left, right) {
             (Value::Number(a,), Value::Number(b)) => Ok(Value::Boolean(*a > *b)),
             (Value::Char(a), Value::Char(b)) => Ok(Value::Boolean(*a > *b)),
+            (Value::Char(a), Value::Number(b)) => Ok(Value::Boolean(Number::Integer(*a as i32) > *b)),
+            (Value::Number(a), Value::Char(b)) => Ok(Value::Boolean(*a > Number::Integer(*b as i32))),
             (..) => cmp_error!(op, left.clone(), right.clone()),
         },
         CmpBinOp::LEq => match (left, right) {
             (Value::Number(a,), Value::Number(b)) => Ok(Value::Boolean(*a <= *b)),
             (Value::Char(a), Value::Char(b)) => Ok(Value::Boolean(*a <= *b)),
+            (Value::Char(a), Value::Number(b)) => Ok(Value::Boolean(Number::Integer(*a as i32) <= *b)),
+            (Value::Number(a), Value::Char(b)) => Ok(Value::Boolean(*a <= Number::Integer(*b as i32))),
             (..) => cmp_error!(op, left.clone(), right.clone()),
         },
         CmpBinOp::GEq => match (left, right) {
             (Value::Number(a,), Value::Number(b)) => Ok(Value::Boolean(*a >= *b)),
+            (Value::Char(a), Value::Number(b)) => Ok(Value::Boolean(Number::Integer(*a as i32) >= *b)),
+            (Value::Number(a), Value::Char(b)) => Ok(Value::Boolean(*a >= Number::Integer(*b as i32))),
             (Value::Char(a), Value::Char(b)) => Ok(Value::Boolean(*a >= *b)),
             (..) => cmp_error!(op, left.clone(), right.clone()),
         },

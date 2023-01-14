@@ -1,12 +1,15 @@
 pub mod enums;
 pub mod errors;
+#[cfg(test)]
 mod tests;
 use std::iter::Peekable;
 use std::rc::Rc;
 use std::slice::Iter;
 use std::vec;
+use std::fs::File;
 
 use crate::lexer::*;
+use crate::lexer::enums::*;
 use crate::parser::enums::*;
 use crate::parser::errors::*;
 
@@ -63,7 +66,7 @@ fn parse_binary_operation(
     })
 }
 
-fn parse_string(string: &str) -> Value {
+pub fn parse_string(string: &str) -> Value {
     if string.len() == 0 {
         Value::Nil
     } else {
@@ -374,9 +377,11 @@ fn parse_expression(
     }
 }
 
+#[derive(Debug)]
 enum FunctionLine {
     Expression(Expression),
     Assignment(String, Expression),
+    Import(String),
     Empty,
 }
 
@@ -388,10 +393,15 @@ fn parse_line(
     let tokens = &line.tokens;
 
     if tokens.len() == 0 {
-        return Ok(FunctionLine::Empty);
-    }
-
-    if tokens.len() > 2 && matches!(tokens[1], Token::Assignment) {
+        Ok(FunctionLine::Empty)
+    } else if tokens.len() == 2 && matches!(tokens[0], Token::Import) {
+        match &tokens[1] {
+            Token::Str(string) => {
+                Ok(FunctionLine::Import(string.clone()))
+            },
+            _ => Err(ParserError::FilenameStringExpected { line: line.number })
+        }
+    } else if tokens.len() > 2 && matches!(tokens[1], Token::Assignment) {
         match &tokens[0] {
             Token::Name(string) => {
                 let mut iter = tokens[2..].iter().peekable();
@@ -418,7 +428,8 @@ fn handle_line(
     indentation: u16,
     pure: bool,
 ) -> Result<(), ParserError> {
-    match parse_line(line, next_lines, indentation)? {
+    let parsed = parse_line(line, next_lines, indentation)?;
+    match parsed {
         FunctionLine::Expression(exp) => {
             if pure && expressions.len() > 0 {
                 return Err(ParserError::ReturnExpressionError {
@@ -442,6 +453,24 @@ fn handle_line(
                 assignments.push((string, Rc::new(exp)));
                 Ok(())
             }
+        },
+        FunctionLine::Import(filename) => {
+            let file = File::open(filename.clone()).or(Err(ParserError::CannotImportFile { line: line.number, filename }))?;
+
+            let lines = lines(file);
+            let scope = parse(lines)?;
+
+            match scope {
+                Scope::NonPure { assignments: mut import_assignments, statements } => {
+                    assignments.append(&mut import_assignments);
+                    if !statements.is_empty() {
+                        return Err(ParserError::UnexpectedExpressionInTopLevelOfImport { line: line.number })
+                    }
+                },
+                Scope::Pure {..} => panic!("Unexpected Pure scope in import")
+            };
+
+            Ok(())
         },
         FunctionLine::Empty => Ok(()),
     }

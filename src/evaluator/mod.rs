@@ -77,9 +77,12 @@ impl Evaluator {
         assignments: HashTrieMap<String, Rc<Expression>>,
         memoize: bool,
     ) -> Result<Value, EvaluatorError> {
-        let mut expression = expr;
+        let mut expression = expr.clone();
         loop {
             if let Expression::Value(value) = expression.as_ref() {
+                if memoize && matches!(expr.as_ref(), Expression::FunctionCall{ .. }) {
+                    self.memoization_map.insert(ByAddress(expr), Rc::new(Expression::Value(value.clone())));
+                }
                 return Ok(value.clone());
             }
             //println!("Evaluating expression: {:?}", expression);
@@ -126,16 +129,17 @@ impl Evaluator {
         memoize: bool,
     ) -> Result<Rc<Expression>, EvaluatorError> {
         if let Some(expression) = self.memoization_map.get(&ByAddress(expr.clone())) {
-            println!("using memoization for: {:?}", expression);
+            //println!("using memoization for: {:?}", expression);
             return Ok(expression.clone());
         } else {
             let result = match expr.as_ref() {
                 Expression::Value(_) => expr.clone(),
                 Expression::Thunk(expr, env, memoize) => {
                     let result = self.eval_expression(expr.clone(), env.clone(), *memoize)?;
-                    if *memoize {
-                        //self.memoization_map.insert(ByAddress(expr.clone()), result.clone());
+                    if matches!(expr.as_ref(), Expression::ReadCall) {
+                        self.memoization_map.insert(ByAddress(expr.clone()), result.clone());
                     }
+
                     result
                 }
                 Expression::Name(string) => {
@@ -180,9 +184,21 @@ impl Evaluator {
                     if memoize {
                         return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
                     }
-                    todo!()
+                    let mut string = String::new();
+                    std::io::stdin().read_line(&mut string).unwrap();
+                    
+                    if string.ends_with('\n') {
+                        string.pop();
+                        if string.ends_with('\r') {
+                            string.pop();
+                        }
+                    }
+                    Rc::new(Expression::Value(crate::parser::parse_string(&string)))
                 }
                 Expression::PrintCall(expr) => {
+                    if memoize {
+                        return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
+                    }
                     let value = self.end_eval(expr.clone(), assignments, memoize)?;
                     print(&value);
                     println!();
@@ -273,50 +289,13 @@ impl Evaluator {
                 Expression::UnaryOperation(op, inside_expr) => {
                     Rc::new(Expression::Value(eval_unary_op(*op, &self.end_eval(inside_expr.clone(), assignments.clone(), memoize)?)?))
                 },
-                
-                // match inside_expr.as_ref() {
-                //     Expression::Value(value) => {
-                //         Rc::new(Expression::Value(eval_unary_op(*op, value)?))
-                //     }
-                //     _ => Rc::new(Expression::UnaryOperation(
-                //         *op,
-                //         self.eval_expression(inside_expr.clone(), assignments, memoize)?,
-                //     )),
-                // },
                 Expression::BinaryOperation(op, left, right) => {
-                    // if matches!(op, BinaryOp::Compare(CmpBinOp::Eq)) {
-                    //     match (left.as_ref(), right.as_ref()) {
-                    //         (Expression::Cons(..), Expression::Value(Value::Nil)) => return Ok(Rc::new(Expression::Value(Value::Boolean(false)))),
-                    //         (Expression::Thunk(_, _, _), Expression::Value(Value::Nil)) => return Ok(Rc::new(Expression::BinaryOperation(*op, self.eval_expression(left.clone(), assignments.clone(), memoize)?, right.clone()))),
-                    //         _ => ()
-                    //     }
-                    // }
                     Rc::new(Expression::Value(eval_bin_op(
                         *op,
                         &self.end_eval(left.clone(), assignments.clone(), memoize)?,
                         &self.end_eval(right.clone(), assignments.clone(), memoize)?,
                     )?))
                 }
-                // match (left.as_ref(), right.as_ref()) {
-                //     (Expression::Value(left), Expression::Value(right)) => {
-                //         Rc::new(Expression::Value(eval_bin_op(*op, left, right)?))
-                //     }
-                //     (Expression::Value(_), _) => Rc::new(Expression::BinaryOperation(
-                //         *op,
-                //         left.clone(),
-                //         self.eval_expression(right.clone(), assignments, memoize)?,
-                //     )),
-                //     (_, Expression::Value(_)) => Rc::new(Expression::BinaryOperation(
-                //         *op,
-                //         self.eval_expression(left.clone(), assignments, memoize)?,
-                //         right.clone(),
-                //     )),
-                //     (_, _) => Rc::new(Expression::BinaryOperation(
-                //         *op,
-                //         self.eval_expression(left.clone(), assignments.clone(), memoize)?,
-                //         self.eval_expression(right.clone(), assignments, memoize)?,
-                //     )),
-                // },
                 Expression::If {
                     condition,
                     then_scope,

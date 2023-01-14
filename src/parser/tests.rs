@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-#[cfg(test)]
-use crate::lexer::{Line, Token};
+use crate::lexer::Line;
+use crate::lexer::enums::*;
 use crate::parser::*;
 
 fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {

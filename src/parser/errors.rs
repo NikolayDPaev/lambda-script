@@ -1,4 +1,4 @@
-use crate::lexer::Token;
+use crate::lexer::enums::Token;
 
 #[derive(Debug, PartialEq)]
 pub enum ParserError {
@@ -9,6 +9,13 @@ pub enum ParserError {
         msg: String,
         expected: i32,
         actual: i32,
+    },
+    UnexpectedExpressionInTopLevelOfImport {
+        line: u32,
+    },
+    CannotImportFile {
+        line: u32,
+        filename: String,
     },
     ExpressionExpected {
         line: u32,
@@ -35,6 +42,9 @@ pub enum ParserError {
         line: u32,
     },
     CharParseError {
+        line: u32,
+    },
+    FilenameStringExpected {
         line: u32,
     },
     NameExpected {

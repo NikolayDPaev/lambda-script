@@ -55,7 +55,6 @@ pub enum Value {
     Nil,
     Number(Number),
     Char(char),
-    Error(String),
     Tuple(Box<Value>, Box<Value>),
     Function {
         params: Vec<String>,

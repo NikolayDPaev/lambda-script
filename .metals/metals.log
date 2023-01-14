@@ -1,0 +1,29 @@
+2023.01.14 21:13:05 INFO  tracing is disabled for protocol LSP, to enable tracing of incoming and outgoing JSON messages create an empty file at /mnt/c/Users/nikip/Documents/programming/lambda-script/.metals/lsp.trace.json or /home/nikip/.cache/metals/lsp.trace.json[0m
+2023.01.14 21:13:05 INFO  logging to file /mnt/c/Users/nikip/Documents/programming/lambda-script/.metals/metals.log[0m
+2023.01.14 21:13:05 INFO  Started: Metals version 0.11.10 in workspace '/mnt/c/Users/nikip/Documents/programming/lambda-script' for client Visual Studio Code 1.74.3.[0m
+2023.01.14 21:13:05 WARN  Can't instantiate JavaInteractiveSemanticdb (version: JdkVersion(17), jdkHome: /usr/lib/jvm/java-17-openjdk-amd64, javac exists: false)[0m
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+SLF4J: Class path contains SLF4J bindings targeting slf4j-api versions 1.7.x or earlier.
+SLF4J: Ignoring binding found at [jar:file:/home/nikip/.cache/coursier/v1/https/repo1.maven.org/maven2/com/outr/scribe-slf4j_2.13/3.10.5/scribe-slf4j_2.13-3.10.5.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See https://www.slf4j.org/codes.html#ignoredBindings for an explanation.
+2023.01.14 21:13:06 INFO  time: initialize in 0.86s[0m
+2023.01.14 21:13:07 WARN  Build server is not auto-connectable.[0m
+2023.01.14 21:13:07 WARN  no build tool detected in workspace '/mnt/c/Users/nikip/Documents/programming/lambda-script'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. [0m
+Jan 14, 2023 9:13:47 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+2023.01.14 21:16:57 INFO  shutting down Metals[0m
+2023.01.14 23:13:24 INFO  tracing is disabled for protocol LSP, to enable tracing of incoming and outgoing JSON messages create an empty file at /mnt/c/Users/nikip/Documents/programming/lambda-script/.metals/lsp.trace.json or /home/nikip/.cache/metals/lsp.trace.json[0m
+2023.01.14 23:13:25 INFO  logging to file /mnt/c/Users/nikip/Documents/programming/lambda-script/.metals/metals.log[0m
+2023.01.14 23:13:25 INFO  Started: Metals version 0.11.10 in workspace '/mnt/c/Users/nikip/Documents/programming/lambda-script' for client Visual Studio Code 1.74.3.[0m
+2023.01.14 23:13:25 WARN  Can't instantiate JavaInteractiveSemanticdb (version: JdkVersion(17), jdkHome: /usr/lib/jvm/java-17-openjdk-amd64, javac exists: false)[0m
+SLF4J: No SLF4J providers were found.
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+SLF4J: Class path contains SLF4J bindings targeting slf4j-api versions 1.7.x or earlier.
+SLF4J: Ignoring binding found at [jar:file:/home/nikip/.cache/coursier/v1/https/repo1.maven.org/maven2/com/outr/scribe-slf4j_2.13/3.10.5/scribe-slf4j_2.13-3.10.5.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See https://www.slf4j.org/codes.html#ignoredBindings for an explanation.
+2023.01.14 23:13:25 INFO  time: initialize in 0.67s[0m
+2023.01.14 23:13:27 WARN  Build server is not auto-connectable.[0m
+2023.01.14 23:13:27 WARN  no build tool detected in workspace '/mnt/c/Users/nikip/Documents/programming/lambda-script'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. [0m
