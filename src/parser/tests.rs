@@ -255,6 +255,37 @@ fn test_multiple_operation() {
 }
 
 #[test]
+fn test_multiple_operation_or() {
+    // (n == 0) || empty(list)
+    test_one_line_expression(
+        vec![
+            Token::LeftBracket,
+            Token::Name(String::from("n")),
+            Token::Operation(Op::Eq),
+            Token::Number(String::from("0")),
+            Token::RightBracket,
+            Token::Operation(Op::Or),
+            Token::Empty,
+            Token::LeftBracket,
+            Token::Name(String::from("list")),
+            Token::RightBracket,
+        ],
+        Expression::BinaryOperation(
+            BinaryOp::Boolean(BoolBinOp::Or),
+            Rc::new(Expression::BinaryOperation(
+                BinaryOp::Compare(CmpBinOp::Eq),
+                Rc::new(Expression::Name(String::from("n"))),
+                Rc::new(Expression::Value(Value::Number(Number::Integer(0)))))
+            ),            
+                Rc::new(Expression::Empty (
+                    Rc::new(Expression::Name(String::from("list")))
+                )),
+                
+        )
+    );
+}
+
+#[test]
 fn test_brackets_expression() {
     // (a + foo(b, c)) >= b + (c - d)
     test_one_line_expression(

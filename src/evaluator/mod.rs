@@ -1,7 +1,6 @@
 mod operations;
 use by_address::ByAddress;
-use rpds::{HashTrieMap, Stack};
-use std::result;
+use rpds::HashTrieMap;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::evaluator::operations::*;
@@ -31,7 +30,7 @@ pub enum EvaluatorError {
 }
 
 pub struct Evaluator {
-    memoization_map: HashMap<ByAddress<Rc<Expression>>, Value>,
+    memoization_map: HashMap<ByAddress<Rc<Expression>>, Rc<Expression>>,
 }
 
 macro_rules! add_outside_assignments {
@@ -61,8 +60,15 @@ impl Evaluator {
         };
     }
 
-    pub fn eval_outside_scope(&mut self, scope: &Scope) -> Result<Rc<Expression>, EvaluatorError> {
-        self.eval_scope(scope, HashTrieMap::new())
+    pub fn eval_outside_scope(&mut self, scope: &Scope) -> Result<Value, EvaluatorError> {
+        let mut expression = self.eval_scope(scope, HashTrieMap::new())?;
+        loop {
+            if let Expression::Value(value) = expression.as_ref() {
+                return Ok(value.clone());
+            }
+
+            expression = self.eval_expression(expression, HashTrieMap::new(), false)?;
+        }
     }
 
     fn end_eval(
@@ -76,7 +82,7 @@ impl Evaluator {
             if let Expression::Value(value) = expression.as_ref() {
                 return Ok(value.clone());
             }
-
+            //println!("Evaluating expression: {:?}", expression);
             expression = self.eval_expression(expression, assignments.clone(), memoize)?
         }
     }
@@ -119,18 +125,22 @@ impl Evaluator {
         assignments: HashTrieMap<String, Rc<Expression>>,
         memoize: bool,
     ) -> Result<Rc<Expression>, EvaluatorError> {
-        if let Some(value) = self.memoization_map.get(&ByAddress(expr.clone())) {
-            println!("using memoization for: {:?}", value);
-            return Ok(Rc::new(Expression::Value(value.clone())));
+        if let Some(expression) = self.memoization_map.get(&ByAddress(expr.clone())) {
+            println!("using memoization for: {:?}", expression);
+            return Ok(expression.clone());
         } else {
             let result = match expr.as_ref() {
                 Expression::Value(_) => expr.clone(),
                 Expression::Thunk(expr, env, memoize) => {
-                    self.eval_expression(expr.clone(), env.clone(), *memoize)?
+                    let result = self.eval_expression(expr.clone(), env.clone(), *memoize)?;
+                    if *memoize {
+                        //self.memoization_map.insert(ByAddress(expr.clone()), result.clone());
+                    }
+                    result
                 }
                 Expression::Name(string) => {
                     if let Some(expr) = assignments.get(string) {
-                        expr.clone()
+                        make_thunk!(expr.clone(), assignments, memoize)
                     } else {
                         return Err(EvaluatorError::UnknownName(expr));
                     }

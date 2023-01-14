@@ -16,13 +16,13 @@ macro_rules! new_binary_operation {
     };
 }
 
-macro_rules! assert_no_more_tokens {
-    ($tokens:expr, $line_num:expr) => {
-        if let Some(token) = $tokens.peek() {
-            return Err(ParserError::UnexpectedToken{line: $line_num, token: (*token).clone()});
-        }
-    };
-}
+// macro_rules! assert_no_more_tokens {
+//     ($tokens:expr, $line_num:expr) => {
+//         if let Some(token) = $tokens.peek() {
+//             return Err(ParserError::UnexpectedToken{line: $line_num, token: (*token).clone()});
+//         }
+//     };
+// }
 
 fn parse_binary_operation(
     op: &Op,
@@ -356,7 +356,7 @@ fn parse_expression(
                 ParserError::UnbalancedBracketsError { line: line_num }
             );
             expr
-        }
+        },
         token => {
             return Err(ParserError::UnexpectedToken {
                 line: line_num,
@@ -489,7 +489,7 @@ fn parse_scope(
         if next_line.indentation < scope_indentation && next_line.indentation as i32 <= outside_indentation {
             // end of scope
             break;
-        } else if outside_indentation > 0 {
+        } else if outside_indentation > 0 && next_line.indentation < scope_indentation {
             // scope has not ended yet but has different indentation
             return Err(ParserError::IndentationError {
                 line: last_line_number,

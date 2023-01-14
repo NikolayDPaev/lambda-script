@@ -5,7 +5,7 @@ length = [list] ->
         1 + length(right(list))
 
 take = [n, list] ->
-    if n == 0 then
+    if (n == 0) | empty(list) then
         nil
     else 
         cons(left(list), take(n - 1, right(list)))
@@ -17,13 +17,32 @@ map = [function, list] ->
     if empty(list) then
         nil
     else
-        cons(function(left(list)), map(function, right(list)))
+        head = function(left(list))
+        tail = map(function, right(list))
+        cons(head, tail)
 
-invert = [x] ->
-    -x
+zip = [list1, list2] ->
+    if empty(list1) | empty(list2) then
+        nil
+    else 
+        cons(cons(left(list1), left(list2)), zip(right(list1), right(list2)))
 
-finiteList = cons(1, cons(2, cons(3, cons(4, cons(5, cons(6, cons(7, nil)))))))
-infiniteList = genNaturalsFrom(1)
+plus = [x, y] ->
+    x + y
 
-print(take(5, map(invert, infiniteList)))
-print(take(5, map(invert, finiteList)))
+multiply = [x, y] ->
+    x * y
+
+zipMap = [function, list] ->
+    if empty(list) then
+        nil
+    else
+        head = function(left(left(list)), right(left(list)))
+        tail = zipMap(function, right(list))
+        cons(head, tail)
+
+fibList = cons(0, cons(1, zipMap(plus, zip(fibList, right(fibList)))))
+print(take(10, fibList))
+
+factorialList = (cons(1, zipMap(multiply, zip(factorialList, genNaturalsFrom(2)))))
+print(take(10, factorialList))

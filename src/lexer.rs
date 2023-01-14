@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader, Read};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {

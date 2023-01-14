@@ -80,15 +80,15 @@ fn eval_bool_op(op: BoolBinOp, left: &Value, right: &Value) -> Result<Value, Eva
     match op {
         BoolBinOp::And => match (left, right) {
             (Value::Boolean(a), Value::Boolean(b)) => return Ok(Value::Boolean(*a && *b)),
-            _ => Err(EvaluatorError::InvalidOperation { msg: String::from("Boolean operation \"and\" is defined only for booleans"), expr: Rc::new(Expression::Value(Value::Tuple(Box::new(left.clone()), Box::new(right.clone())))) }),
+            _ => Err(EvaluatorError::InvalidOperation { msg: String::from("Boolean operation and is defined only for booleans"), expr: Rc::new(Expression::Value(Value::Tuple(Box::new(left.clone()), Box::new(right.clone())))) }),
         },
         BoolBinOp::Or => match (left, right) {
             (Value::Boolean(a), Value::Boolean(b)) => return Ok(Value::Boolean(*a || *b)),
-            _ => Err(EvaluatorError::InvalidOperation { msg: String::from("Boolean operation \"or\" is defined only for booleans"), expr: Rc::new(Expression::Value(Value::Tuple(Box::new(left.clone()), Box::new(right.clone())))) }),
+            _ => Err(EvaluatorError::InvalidOperation { msg: String::from("Boolean operation or is defined only for booleans"), expr: Rc::new(Expression::Value(Value::Tuple(Box::new(left.clone()), Box::new(right.clone())))) }),
         },
         BoolBinOp::Xor => match (left, right) {
             (Value::Boolean(a), Value::Boolean(b)) => return Ok(Value::Boolean(*a ^ *b)),
-            _ => Err(EvaluatorError::InvalidOperation { msg: String::from("Boolean operation \"xor\" is defined only for booleans"), expr: Rc::new(Expression::Value(Value::Tuple(Box::new(left.clone()), Box::new(right.clone())))) }),
+            _ => Err(EvaluatorError::InvalidOperation { msg: String::from("Boolean operation xor is defined only for booleans"), expr: Rc::new(Expression::Value(Value::Tuple(Box::new(left.clone()), Box::new(right.clone())))) }),
         },
     }
 }
