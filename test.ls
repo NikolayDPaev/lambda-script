@@ -33,6 +33,9 @@ plus = [x, y] ->
 multiply = [x, y] ->
     x * y
 
+invert = [x] ->
+    -x
+
 zipMap = [function, list] ->
     if empty(list) then
         nil

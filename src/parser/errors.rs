@@ -37,9 +37,6 @@ pub enum ParserError {
     CharParseError {
         line: u32,
     },
-    FunctionExpected {
-        line: u32,
-    },
     NameExpected {
         line: u32,
     },

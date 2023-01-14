@@ -270,15 +270,19 @@ impl Evaluator {
                         memoize,
                     )?)),
                 },
-                Expression::UnaryOperation(op, inside_expr) => match inside_expr.as_ref() {
-                    Expression::Value(value) => {
-                        Rc::new(Expression::Value(eval_unary_op(*op, value)?))
-                    }
-                    _ => Rc::new(Expression::UnaryOperation(
-                        *op,
-                        self.eval_expression(inside_expr.clone(), assignments, memoize)?,
-                    )),
+                Expression::UnaryOperation(op, inside_expr) => {
+                    Rc::new(Expression::Value(eval_unary_op(*op, &self.end_eval(inside_expr.clone(), assignments.clone(), memoize)?)?))
                 },
+                
+                // match inside_expr.as_ref() {
+                //     Expression::Value(value) => {
+                //         Rc::new(Expression::Value(eval_unary_op(*op, value)?))
+                //     }
+                //     _ => Rc::new(Expression::UnaryOperation(
+                //         *op,
+                //         self.eval_expression(inside_expr.clone(), assignments, memoize)?,
+                //     )),
+                // },
                 Expression::BinaryOperation(op, left, right) => {
                     // if matches!(op, BinaryOp::Compare(CmpBinOp::Eq)) {
                     //     match (left.as_ref(), right.as_ref()) {
