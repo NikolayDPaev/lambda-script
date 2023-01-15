@@ -3,17 +3,12 @@ import "lib.ls"
 genNaturalsFrom = [n] ->
     cons(n, genNaturalsFrom(n + 1))
 
-plus = [x, y] -> между другото, тука мога да си пиша каквото си искам
-    x + y
+print(length(take(5, genNaturalsFrom(5))))
 
-multiply = [x, y] ->
-    x * y
+fibList = cons(0, cons(1, zipMap([x, y] -> x + y, zip(fibList, right(fibList)))))
+print(take(5, fibList))
 
-invert = [x] ->
-    -x
-
-fibList = cons(0, cons(1, zipMap(plus, zip(fibList, right(fibList)))))
-print(take(parseNumber(read), fibList))
-
-factorialList = (cons(1, zipMap(multiply, zip(factorialList, genNaturalsFrom(2)))))
+factorialList = (cons(1, zipMap([x, y] -> x * y, zip(factorialList, genNaturalsFrom(2)))))
 print(take(10, factorialList))
+
+if true then print("1234") else print("123")

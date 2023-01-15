@@ -27,3 +27,4 @@ SLF4J: See https://www.slf4j.org/codes.html#ignoredBindings for an explanation.
 2023.01.14 23:13:25 INFO  time: initialize in 0.67s[0m
 2023.01.14 23:13:27 WARN  Build server is not auto-connectable.[0m
 2023.01.14 23:13:27 WARN  no build tool detected in workspace '/mnt/c/Users/nikip/Documents/programming/lambda-script'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. [0m
+2023.01.14 23:28:50 INFO  shutting down Metals[0m

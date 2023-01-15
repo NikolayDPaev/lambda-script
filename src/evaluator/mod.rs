@@ -195,11 +195,11 @@ impl Evaluator {
                     }
                     Rc::new(Expression::Value(crate::parser::parse_string(&string)))
                 }
-                Expression::PrintCall(expr) => {
+                Expression::PrintCall(inside_expr) => {
                     if memoize {
                         return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
                     }
-                    let value = self.end_eval(expr.clone(), assignments, memoize)?;
+                    let value = self.end_eval(inside_expr.clone(), assignments, memoize)?;
                     print(&value);
                     println!();
                     Rc::new(Expression::Value(Value::Nil))
