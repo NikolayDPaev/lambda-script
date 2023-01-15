@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use crate::lexer::Line;
 use crate::lexer::enums::*;
+use crate::lexer::Line;
 use crate::parser::*;
 
 fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
@@ -49,9 +49,9 @@ fn test_values() {
                 Box::new(Value::Tuple(
                     Box::new(Value::Char('r')),
                     Box::new(Value::Nil),
-                ))),
+                )),
             )),
-        ),
+        )),
     );
     test_one_line_expression(
         vec![Token::Number(String::from("123"))],
@@ -144,20 +144,11 @@ fn test_builtin_functions() {
     );
 
     test_one_line_expression_error(
-        vec![
-            Token::Right,
-        ],
-        ParserError::LeftBracketExpected { line: 1 }
+        vec![Token::Right],
+        ParserError::LeftBracketExpected { line: 1 },
     );
 
-    test_one_line_expression(
-        vec![
-            Token::Read,
-        ],
-        Expression::ReadCall,
-    );
-
-
+    test_one_line_expression(vec![Token::Read], Expression::ReadCall);
 }
 
 #[test]
@@ -275,13 +266,12 @@ fn test_multiple_operation_or() {
             Rc::new(Expression::BinaryOperation(
                 BinaryOp::Compare(CmpBinOp::Eq),
                 Rc::new(Expression::Name(String::from("n"))),
-                Rc::new(Expression::Value(Value::Number(Number::Integer(0)))))
-            ),            
-                Rc::new(Expression::Empty (
-                    Rc::new(Expression::Name(String::from("list")))
-                )),
-                
-        )
+                Rc::new(Expression::Value(Value::Number(Number::Integer(0)))),
+            )),
+            Rc::new(Expression::Empty(Rc::new(Expression::Name(String::from(
+                "list",
+            ))))),
+        ),
     );
 }
 
@@ -405,8 +395,14 @@ fn test_assignments_name() {
         result,
         Scope::NonPure {
             assignments: vec![
-                (String::from("foo"), Rc::new(Expression::Name(String::from("bar")))),
-                (String::from("bar"), Rc::new(Expression::Name(String::from("foo"))))
+                (
+                    String::from("foo"),
+                    Rc::new(Expression::Name(String::from("bar")))
+                ),
+                (
+                    String::from("bar"),
+                    Rc::new(Expression::Name(String::from("foo")))
+                )
             ],
             statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
@@ -465,8 +461,8 @@ fn test_function_multiple_args() {
                         )],
                         expression: Rc::new(Expression::Name(String::from("foo")))
                     })
-                })
-            ))],
+                }))
+            )],
             statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
     );
@@ -509,8 +505,8 @@ fn test_function_no_args() {
                         assignments: vec![],
                         expression: Rc::new(Expression::Name(String::from("foo")))
                     })
-                })
-            ))],
+                }))
+            )],
             statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
     );
@@ -555,10 +551,13 @@ fn test_function_nonpure_no_args() {
                     params: vec![],
                     scope: Box::new(Scope::NonPure {
                         assignments: vec![],
-                        statements: vec![Rc::new(Expression::Name(String::from("foo"))), Rc::new(Expression::Name(String::from("bar")))]
+                        statements: vec![
+                            Rc::new(Expression::Name(String::from("foo"))),
+                            Rc::new(Expression::Name(String::from("bar")))
+                        ]
                     })
-                })
-            ))],
+                }))
+            )],
             statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
     );
@@ -616,20 +615,65 @@ fn test_if_else() {
                 String::from("foo"),
                 Rc::new(Expression::If {
                     condition: Rc::new(Expression::Name(String::from("bar"))),
-                    then_scope: Box::new(Scope::Pure {
+                    then_scope: Box::new(Scope::NonPure {
                         assignments: vec![(
                             String::from("foo"),
-                            Rc::new(Expression::Value(Value::Boolean(true))
-                        ))],
-                        expression: Rc::new(Expression::Name(String::from("foo")))
+                            Rc::new(Expression::Value(Value::Boolean(true)))
+                        )],
+                        statements: vec![Rc::new(Expression::Name(String::from("foo")))]
                     }),
-                    else_scope: Box::new(Scope::Pure {
+                    else_scope: Box::new(Scope::NonPure {
                         assignments: vec![],
-                        expression: Rc::new(Expression::Value(Value::Number(Number::Float(12.3))))
+                        statements: vec![Rc::new(Expression::Value(Value::Number(Number::Float(12.3))))]
                     })
-                }
-            ))],
+                })
+            )],
             statements: vec![Rc::new(Expression::Name(String::from("foo")))]
         }
     );
+}
+
+#[test]
+fn test_one_line_function_def() {
+    test_one_line_expression(
+        vec![
+            Token::LeftBoxBracket,
+            Token::Name(String::from("a")),
+            Token::RightBoxBracket,
+            Token::Arrow,
+            Token::Name(String::from("a")),
+        ],
+        Expression::Value(Value::Function {
+            params: vec![String::from("a")],
+            scope: Box::new(Scope::Pure {
+                assignments: vec![],
+                expression: Rc::new(Expression::Name(String::from("a"))),
+            }),
+        }),
+    )
+}
+
+#[test]
+fn test_one_line_if_else() {
+    test_one_line_expression(
+        vec![
+            Token::If,
+            Token::Name(String::from("a")),
+            Token::Then,
+            Token::Name(String::from("a")),
+            Token::Else,
+            Token::Name(String::from("a")),
+        ],
+        Expression::If {
+            condition: Rc::new(Expression::Name(String::from("a"))),
+            then_scope: Box::new(Scope::NonPure {
+                assignments: vec![],
+                statements: vec![Rc::new(Expression::Name(String::from("a")))],
+            }),
+            else_scope: Box::new(Scope::NonPure {
+                assignments: vec![],
+                statements: vec![Rc::new(Expression::Name(String::from("a")))],
+            }),
+        },
+    )
 }

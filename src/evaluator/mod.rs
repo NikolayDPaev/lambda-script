@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod tests;
 mod operations;
 use by_address::ByAddress;
 use rpds::HashTrieMap;
@@ -71,7 +73,7 @@ impl Evaluator {
         }
     }
 
-    fn end_eval(
+    fn force_eval(
         &mut self,
         expr: Rc<Expression>,
         assignments: HashTrieMap<String, Rc<Expression>>,
@@ -90,7 +92,7 @@ impl Evaluator {
         }
     }
 
-    pub fn eval_scope(
+    fn eval_scope(
         &mut self,
         scope: &Scope,
         outside_assignments: HashTrieMap<String, Rc<Expression>>,
@@ -111,7 +113,7 @@ impl Evaluator {
                 let assignments_map = add_outside_assignments!(outside_assignments, assignments);
                 let mut last_expr = Rc::new(Expression::Value(Value::Nil));
                 for expr in statements {
-                    last_expr = Rc::new(Expression::Value(self.end_eval(
+                    last_expr = Rc::new(Expression::Value(self.force_eval(
                         expr.clone(),
                         assignments_map.clone(),
                         false,
@@ -150,7 +152,7 @@ impl Evaluator {
                     }
                 }
                 Expression::FunctionCall { name, args } => {
-                    match self.end_eval(name.clone(), assignments.clone(), memoize)? {
+                    match self.force_eval(name.clone(), assignments.clone(), memoize)? {
                         Value::Function { params, scope } => {
                             if memoize && matches!(scope.as_ref(), Scope::NonPure { .. }) {
                                 return Err(EvaluatorError::SideEffectInPureScope(name.clone()));
@@ -199,7 +201,7 @@ impl Evaluator {
                     if memoize {
                         return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
                     }
-                    let value = self.end_eval(inside_expr.clone(), assignments, memoize)?;
+                    let value = self.force_eval(inside_expr.clone(), assignments, memoize)?;
                     print(&value);
                     println!();
                     Rc::new(Expression::Value(Value::Nil))
@@ -287,20 +289,20 @@ impl Evaluator {
                     )?)),
                 },
                 Expression::UnaryOperation(op, inside_expr) => {
-                    Rc::new(Expression::Value(eval_unary_op(*op, &self.end_eval(inside_expr.clone(), assignments.clone(), memoize)?)?))
+                    Rc::new(Expression::Value(eval_unary_op(*op, &self.force_eval(inside_expr.clone(), assignments.clone(), memoize)?)?))
                 },
                 Expression::BinaryOperation(op, left, right) => {
                     Rc::new(Expression::Value(eval_bin_op(
                         *op,
-                        &self.end_eval(left.clone(), assignments.clone(), memoize)?,
-                        &self.end_eval(right.clone(), assignments.clone(), memoize)?,
+                        &self.force_eval(left.clone(), assignments.clone(), memoize)?,
+                        &self.force_eval(right.clone(), assignments.clone(), memoize)?,
                     )?))
                 }
                 Expression::If {
                     condition,
                     then_scope,
                     else_scope,
-                } => match self.end_eval(condition.clone(), assignments.clone(), memoize)? {
+                } => match self.force_eval(condition.clone(), assignments.clone(), memoize)? {
                     Value::Boolean(true) => {
                         self.eval_scope(&**then_scope, assignments)?
                     }

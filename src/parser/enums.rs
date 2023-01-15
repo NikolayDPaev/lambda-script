@@ -14,19 +14,11 @@ pub enum Scope {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Number {
     Float(f64),
     Integer(i32),
 }
-
-impl PartialOrd for Number {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Eq for Number {}
 
 fn float_cmp(val_1: &f64, val_2: &f64) -> Ordering {
     if (val_1 - val_2).abs() < f64::EPSILON {
@@ -42,12 +34,26 @@ impl Ord for Number {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
             (Number::Float(a), Number::Float(b)) => float_cmp(a, b),
-            (Number::Float(a), Number::Integer(b)) => float_cmp(a, &(*b as f64)),
-            (Number::Integer(a), Number::Float(b)) => float_cmp(&(*a as f64), b),
+            (Number::Float(a), Number::Integer(b)) => float_cmp(a, &(Into::<f64>::into(*b))),
+            (Number::Integer(a), Number::Float(b)) => float_cmp(&(Into::<f64>::into(*a)), b),
             (Number::Integer(a), Number::Integer(b)) => a.cmp(b),
         }
     }
 }
+
+impl PartialOrd for Number {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Number {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl Eq for Number {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {

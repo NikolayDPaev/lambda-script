@@ -170,7 +170,7 @@ fn eval_arith_op(op: ArithBinOp, left: &Value, right: &Value) -> Result<Value, E
             (Value::Number(Number::Integer(a)), Value::Number(Number::Float(b))) => Ok(Value::Number(Number::Float(*a as f64 + b))),
             (Value::Number(Number::Float(a)), Value::Number(Number::Integer(b))) => Ok(Value::Number(Number::Float(a + *b as f64))),
             (Value::Number(Number::Float(a)), Value::Number(Number::Float(b))) => Ok(Value::Number(Number::Float(a + b))),
-            (Value::Char(c_1), Value::Char(c_2)) => Ok(Value::Char(char::from_u32((*c_1 as u8 + *c_2 as u8) as u32).ok_or(EvaluatorError::ArithmeticError { op, value_1: left.clone(), value_2: right.clone() })?)),
+            (Value::Char(c_1), Value::Char(c_2)) => Ok(Value::Number(Number::Integer(*c_1 as i32 + *c_2 as i32))),
             (Value::Number(Number::Integer(n)), Value::Char(c)) => Ok(Value::Number(Number::Integer(n + *c as i32))),
             (Value::Char(c), Value::Number(Number::Integer(n))) => Ok(Value::Char(char::from_u32((*c as i32 + n ) as u32).ok_or(EvaluatorError::ArithmeticError { op, value_1: left.clone(), value_2: right.clone() })?)),
             ( .. ) => arith_error!(op, left.clone(), right.clone()),
@@ -180,13 +180,19 @@ fn eval_arith_op(op: ArithBinOp, left: &Value, right: &Value) -> Result<Value, E
                 let neg_right = eval_unary_op(UnaryOp::Minus, right)?;
                 eval_arith_op(ArithBinOp::Plus, left, &neg_right)
             },
-            (Value::Char(c_1), Value::Char(c_2)) => Ok(Value::Char(char::from_u32((*c_1 as u8 - *c_2 as u8) as u32).ok_or(EvaluatorError::ArithmeticError { op, value_1: left.clone(), value_2: right.clone() })?)),
+            (Value::Char(c_1), Value::Char(c_2)) => Ok(Value::Number(Number::Integer(*c_1 as i32 - *c_2 as i32))),
             (Value::Number(Number::Integer(n)), Value::Char(c)) => Ok(Value::Number(Number::Integer(n - *c as i32))),
             (Value::Char(c), Value::Number(Number::Integer(n))) => Ok(Value::Char(char::from_u32((*c as i32 - n ) as u32).ok_or(EvaluatorError::ArithmeticError { op, value_1: left.clone(), value_2: right.clone() })?)),
             ( .. ) => arith_error!(op, left.clone(), right.clone()),
         },
         ArithBinOp::Division => match (left, right) {
-            (Value::Number(Number::Integer(a)), Value::Number(Number::Integer(b))) => Ok(Value::Number(Number::Integer(a / b))),
+            (Value::Number(Number::Integer(a)), Value::Number(Number::Integer(b))) =>{
+                if a % b == 0 {
+                    Ok(Value::Number(Number::Integer(a / b)))
+                } else {
+                    Ok(Value::Number(Number::Float(*a as f64 / *b as f64)))
+                }
+            } 
             (Value::Number(Number::Integer(a)), Value::Number(Number::Float(b))) => Ok(Value::Number(Number::Float(*a as f64 / b))),
             (Value::Number(Number::Float(a)), Value::Number(Number::Integer(b))) => Ok(Value::Number(Number::Float(a / *b as f64))),
             (Value::Number(Number::Float(a)), Value::Number(Number::Float(b))) => Ok(Value::Number(Number::Float(a / b))),
