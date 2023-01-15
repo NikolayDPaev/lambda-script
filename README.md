@@ -40,12 +40,12 @@ Functions are first class objects and can be two types:
 - Nonpure: can have multiple expressions each evaluated eagerly, print and read calls are nonpure
 
 Built-in functions:
- - ```read```: reads string from the std in
- - ```print(<expr>)``` : prints value to std out
- - ```left(<expr>)```: if expression is cons or tuple, returns left element
- - ```right(<expr>)```: if expression is cons or tuple, returns left element
- - ```cons(<expr>, <expr>)```: constructs new tuple from the expressions
- - ```empty(<expr>)```: checks if expression is cons or nil
+ - ```read``` reads string from the std in
+ - ```print(<expr>)```  prints value to std out
+ - ```left(<expr>)``` if expression is cons or tuple, returns left element
+ - ```right(<expr>)``` if expression is cons or tuple, returns right element
+ - ```cons(<expr>, <expr>)``` constructs new tuple from the expressions
+ - ```empty(<expr>)``` checks if expression is cons or nil
 
 ## Function Syntax:
 ```
@@ -125,5 +125,11 @@ else
     <assignment>
     ...
     <expression>
+```
 
+## Imports
+Imports are also available. The imported files should consist only of assignments at the top level - like a libraries.
+Note that the interpreter does not check for circular imports
+```
+import "example.ls"
 ```
