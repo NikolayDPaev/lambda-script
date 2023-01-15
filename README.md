@@ -36,8 +36,8 @@ Expressions in pure scope are evaluated lazily. Expressions are:
 
 ## Functions
 Functions are first class objects and can be two types:
-- Pure (default): have assignments and only one expression, cannot call nonpure functions, lazy evaluation guaranteed
-- Nonpure: can have multiple expressions each evaluated eagerly, print and read calls are nonpure
+- Pure (default): have assignments and only one expression. Calling nonpure functions in pure scope will result in error. Lazy evaluation in pure functions definition is guaranteed.
+- Nonpure: can have multiple expressions each evaluated eagerly. Print and read calls are nonpure.
 
 Built-in functions:
  - ```read``` reads string from the std in
