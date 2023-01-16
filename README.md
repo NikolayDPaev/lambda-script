@@ -1,5 +1,5 @@
 # lambda-script
-Course project for Programming with Rust  
+Course project for Programming with Rust:  
 Interpreter for Custom Functional Programming language with lazy evaluation
 
 ## Some code examples:
@@ -25,7 +25,7 @@ outputs
 # Very short description
 
 ## Expressions:
-Expressions in pure scope are evaluated lazily. Expressions are:
+Expressions by default are evaluated lazily. Expressions are:
  - values: Function, Boolean, Number, Char, Tuple(Value, Value), Nil
  - names
  - function calls
