@@ -36,7 +36,7 @@ fn try_string(value: &Value) -> Option<String> {
 pub fn print(value: &Value) {
     match value {
         Value::Boolean(true) => print!("true"),
-        Value::Boolean(false) => print!("true"),
+        Value::Boolean(false) => print!("false"),
         Value::Nil => print!("nil"),
         Value::Number(Number::Float(f)) => print!("{}", f),
         Value::Number(Number::Integer(i)) => print!("{}", i),

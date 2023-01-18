@@ -1,8 +1,8 @@
-use std::{env, fs::File, path};
+use std::{env, fs::File, path, io};
 #[macro_use] extern crate educe;
 
 use lexer::lines;
-use parser::parse;
+use parser::{parse, enums::{Value, Number}};
 use evaluator::*;
 
 mod evaluator;
@@ -15,7 +15,21 @@ fn main() {
         path.push("resources");
     }
 
-    let file = File::open("test.ls").expect("no such file");
+    let arg = match env::args().nth(1) {
+        Some(arg) => arg,
+        _ => {
+            println!("Usage: lambda-script.exe <file>");
+            std::process::exit(1)
+        }
+    };
+
+    let file = match File::open(arg) {
+        io::Result::Ok(file) => file,
+        _ => {
+            println!("Cannot open file");
+            std::process::exit(1)
+        }
+    };
 
     let lines = lines(file);
     let scope = parse(lines);
@@ -23,8 +37,13 @@ fn main() {
         Ok(s) => {
             //println!("{:?}", s);
             let mut evaluator = Evaluator::new();
-            println!("{:?}", evaluator.eval_outside_scope(&s));
-            
+            let result = evaluator.eval_outside_scope(&s);
+            match result {
+                Ok(Value::Nil) => std::process::exit(0),
+                Ok(Value::Number(Number::Integer(code))) => std::process::exit(code),
+                Ok(_) => (),
+                Err(e) => println!("{:?}", e),
+            }
         }
         Err(e) => println!("{:?}", e),
     };

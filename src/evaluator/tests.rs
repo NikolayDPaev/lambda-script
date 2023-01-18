@@ -92,6 +92,12 @@ fn evaluate_cmp_num_operations() {
         true
     );
     test_cmp_num_expression!(
+        Number::Integer(1),
+        CmpBinOp::Eq,
+        Number::Integer(10),
+        false
+    );
+    test_cmp_num_expression!(
         Number::Integer(13),
         CmpBinOp::NEq,
         Number::Integer(13),
