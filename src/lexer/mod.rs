@@ -15,7 +15,7 @@ pub struct Line {
 macro_rules! read_while_alphanumeric_into {
     ($iter:expr, $string:expr) => {
         while let Some(ch) = $iter.peek() {
-            if !ch.is_alphanumeric() && *ch != '.' && *ch != '_' && *ch != '-' {
+            if !ch.is_alphanumeric() && *ch != '.' && *ch != '_' {
                 break;
             } else {
                 $string.push(*ch);
@@ -71,6 +71,8 @@ impl Line {
         while let Some(ch) = iter.next() {
             if ch.is_whitespace() {
                 continue;
+            } else if ch == '#' {
+                break;
             } else if ch.is_alphabetic() {
                 let mut string = String::new();
                 string.push(ch);
