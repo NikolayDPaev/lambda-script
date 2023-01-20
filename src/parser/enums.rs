@@ -1,16 +1,16 @@
-use std::{rc::Rc, cmp::Ordering, fmt::{Formatter, self}};
+use std::{rc::Rc, cmp::Ordering, fmt::{Formatter, self}, cell::RefCell};
 
 use rpds::HashTrieMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Scope {
     Pure{
-        assignments: Vec<(String, Rc<Expression>)>,
-        expression: Rc<Expression>,
+        assignments: Vec<(String, Rc<RefCell<Expression>>)>,
+        expression: Rc<RefCell<Expression>>,
     },
     NonPure{
-        assignments: Vec<(String, Rc<Expression>)>,
-        statements: Vec<Rc<Expression>>,
+        assignments: Vec<(String, Rc<RefCell<Expression>>)>,
+        statements: Vec<Rc<RefCell<Expression>>>,
     }
 }
 
@@ -64,7 +64,7 @@ pub enum Value {
     Tuple(Box<Value>, Box<Value>),
     Function {
         params: Vec<String>,
-        scope: Box<Scope>,
+        scope: Box<RefCell<Scope>>,
     }
 }
 
@@ -109,9 +109,9 @@ pub enum UnaryOp {
     Minus,
 }
 
-fn fmt(tree: &HashTrieMap<String, Rc<Expression>>, f: &mut Formatter) -> fmt::Result {
+fn fmt(tree: &HashTrieMap<String, Rc<RefCell<Expression>>>, f: &mut Formatter) -> fmt::Result {
     write!(f, "{:?}", tree.iter().filter(|(_, expr)| {
-        match expr.as_ref() {
+        match *expr.borrow() {
             Expression::Value(Value::Function { .. }) => false,
             Expression::Value(_) => true,
             _ => false,
@@ -126,27 +126,27 @@ pub enum Expression {
     Value(Value),
     Name(String),
     Thunk(
-        Rc<Expression>,
+        Rc<RefCell<Expression>>,
         #[educe(Debug(method = "fmt"))]
-        HashTrieMap<String, Rc<Expression>>,
+        HashTrieMap<String, Rc<RefCell<Expression>>>,
         #[educe(Debug(ignore))]
         bool,
     ),
     FunctionCall {
-        name: Rc<Expression>,
-        args: Vec<Rc<Expression>>,
+        name: Rc<RefCell<Expression>>,
+        args: Vec<Rc<RefCell<Expression>>>,
     },
     ReadCall,
-    PrintCall(Rc<Expression>),
-    Cons(Rc<Expression>,Rc<Expression>),
-    Left(Rc<Expression>),
-    Right(Rc<Expression>),
-    Empty(Rc<Expression>),
-    UnaryOperation(UnaryOp, Rc<Expression>),
-    BinaryOperation(BinaryOp, Rc<Expression>, Rc<Expression>),
+    PrintCall(Rc<RefCell<Expression>>),
+    Cons(Rc<RefCell<Expression>>,Rc<RefCell<Expression>>),
+    Left(Rc<RefCell<Expression>>),
+    Right(Rc<RefCell<Expression>>),
+    Empty(Rc<RefCell<Expression>>),
+    UnaryOperation(UnaryOp, Rc<RefCell<Expression>>),
+    BinaryOperation(BinaryOp, Rc<RefCell<Expression>>, Rc<RefCell<Expression>>),
     If {
-        condition: Rc<Expression>,
-        then_scope: Box<Scope>,
-        else_scope: Box<Scope>,
+        condition: Rc<RefCell<Expression>>,
+        then_scope: Box<RefCell<Scope>>,
+        else_scope: Box<RefCell<Scope>>,
     }
 }

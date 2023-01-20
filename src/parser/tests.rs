@@ -15,7 +15,7 @@ fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
         result,
         Scope::NonPure {
             assignments: vec![],
-            statements: vec![Rc::new(expression)],
+            statements: vec![Rc::new(RefCell::new(expression))],
         }
     );
 }
@@ -98,8 +98,8 @@ fn test_builtin_functions() {
             Token::RightBracket,
         ],
         Expression::Cons(
-            Rc::new(Expression::Name(String::from("foo"))),
-            Rc::new(Expression::Name(String::from("bar"))),
+            Rc::new(RefCell::new(Expression::Name(String::from("foo")))),
+            Rc::new(RefCell::new(Expression::Name(String::from("bar")))),
         ),
     );
 
@@ -120,7 +120,7 @@ fn test_builtin_functions() {
             Token::Name(String::from("foo")),
             Token::RightBracket,
         ],
-        Expression::PrintCall(Rc::new(Expression::Name(String::from("foo")))),
+        Expression::PrintCall(Rc::new(RefCell::new(Expression::Name(String::from("foo"))))),
     );
 
     test_one_line_expression(
@@ -130,7 +130,7 @@ fn test_builtin_functions() {
             Token::Name(String::from("foo")),
             Token::RightBracket,
         ],
-        Expression::Left(Rc::new(Expression::Name(String::from("foo")))),
+        Expression::Left(Rc::new(RefCell::new(Expression::Name(String::from("foo"))))),
     );
 
     test_one_line_expression(
@@ -140,7 +140,7 @@ fn test_builtin_functions() {
             Token::Name(String::from("foo")),
             Token::RightBracket,
         ],
-        Expression::Right(Rc::new(Expression::Name(String::from("foo")))),
+        Expression::Right(Rc::new(RefCell::new(Expression::Name(String::from("foo"))))),
     );
 
     test_one_line_expression_error(
@@ -163,10 +163,10 @@ fn test_expression() {
             Token::RightBracket,
         ],
         Expression::FunctionCall {
-            name: Rc::new(Expression::Name(String::from("foo"))),
+            name: Rc::new(RefCell::new(Expression::Name(String::from("foo")))),
             args: vec![
-                Rc::new(Expression::Name(String::from("a"))),
-                Rc::new(Expression::Name(String::from("b"))),
+                Rc::new(RefCell::new(Expression::Name(String::from("a")))),
+                Rc::new(RefCell::new(Expression::Name(String::from("b")))),
             ],
         },
     );
@@ -193,20 +193,20 @@ fn test_operation() {
         ],
         Expression::BinaryOperation(
             BinaryOp::Arithmetic(ArithBinOp::Plus),
-            Rc::new(Expression::FunctionCall {
-                name: Rc::new(Expression::Name(String::from("foo"))),
+            Rc::new(RefCell::new(Expression::FunctionCall {
+                name: Rc::new(RefCell::new(Expression::Name(String::from("foo")))),
                 args: vec![
-                    Rc::new(Expression::Name(String::from("a"))),
-                    Rc::new(Expression::Name(String::from("b"))),
+                    Rc::new(RefCell::new(Expression::Name(String::from("a")))),
+                    Rc::new(RefCell::new(Expression::Name(String::from("b")))),
                 ],
-            }),
-            Rc::new(Expression::FunctionCall {
-                name: Rc::new(Expression::Name(String::from("foo"))),
+            })),
+            Rc::new(RefCell::new(Expression::FunctionCall {
+                name: Rc::new(RefCell::new(Expression::Name(String::from("foo")))),
                 args: vec![
-                    Rc::new(Expression::Name(String::from("b"))),
-                    Rc::new(Expression::Name(String::from("c"))),
+                    Rc::new(RefCell::new(Expression::Name(String::from("b")))),
+                    Rc::new(RefCell::new(Expression::Name(String::from("c")))),
                 ],
-            }),
+            })),
         ),
     );
 }
@@ -229,18 +229,18 @@ fn test_multiple_operation() {
         ],
         Expression::BinaryOperation(
             BinaryOp::Arithmetic(ArithBinOp::Plus),
-            Rc::new(Expression::Name(String::from("a"))),
-            Rc::new(Expression::BinaryOperation(
+            Rc::new(RefCell::new(Expression::Name(String::from("a")))),
+            Rc::new(RefCell::new(Expression::BinaryOperation(
                 BinaryOp::Compare(CmpBinOp::Lt),
-                Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("foo"))),
+                Rc::new(RefCell::new(Expression::FunctionCall {
+                    name: Rc::new(RefCell::new(Expression::Name(String::from("foo")))),
                     args: vec![
-                        Rc::new(Expression::Name(String::from("b"))),
-                        Rc::new(Expression::Name(String::from("c"))),
+                        Rc::new(RefCell::new(Expression::Name(String::from("b")))),
+                        Rc::new(RefCell::new(Expression::Name(String::from("c")))),
                     ],
-                }),
-                Rc::new(Expression::Name(String::from("b"))),
-            )),
+                })),
+                Rc::new(RefCell::new(Expression::Name(String::from("b")))),
+            ))),
         ),
     );
 }
@@ -263,16 +263,15 @@ fn test_multiple_operation_or() {
         ],
         Expression::BinaryOperation(
             BinaryOp::Boolean(BoolBinOp::Or),
-            Rc::new(Expression::BinaryOperation(
+            Rc::new(RefCell::new(Expression::BinaryOperation(
                 BinaryOp::Compare(CmpBinOp::Eq),
-                Rc::new(Expression::Name(String::from("n"))),
-                Rc::new(Expression::Value(Value::Number(Number::Integer(0)))),
-            )),
-            Rc::new(Expression::Empty(Rc::new(Expression::Name(String::from(
+                Rc::new(RefCell::new(Expression::Name(String::from("n")))),
+                Rc::new(RefCell::new(Expression::Value(Value::Number(Number::Integer(0))))),
+            ))),
+            Rc::new(RefCell::new(Expression::Empty(Rc::new(RefCell::new(Expression::Name(String::from(
                 "list",
-            ))))),
-        ),
-    );
+            )))))))),
+        );
 }
 
 #[test]
@@ -301,28 +300,28 @@ fn test_brackets_expression() {
         ],
         Expression::BinaryOperation(
             BinaryOp::Compare(CmpBinOp::GEq),
-            Rc::new(Expression::BinaryOperation(
+            Rc::new(RefCell::new(Expression::BinaryOperation(
                 BinaryOp::Arithmetic(ArithBinOp::Plus),
-                Rc::new(Expression::Name(String::from("a"))),
-                Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("foo"))),
+                Rc::new(RefCell::new(Expression::Name(String::from("a")))),
+                Rc::new(RefCell::new(Expression::FunctionCall {
+                    name: Rc::new(RefCell::new(Expression::Name(String::from("foo")))),
                     args: vec![
-                        Rc::new(Expression::Name(String::from("b"))),
-                        Rc::new(Expression::Name(String::from("c"))),
+                        Rc::new(RefCell::new(Expression::Name(String::from("b")))),
+                        Rc::new(RefCell::new(Expression::Name(String::from("c")))),
                     ],
-                }),
-            )),
-            Rc::new(Expression::BinaryOperation(
+                })),
+            ))),
+            Rc::new(RefCell::new(Expression::BinaryOperation(
                 BinaryOp::Arithmetic(ArithBinOp::Plus),
-                Rc::new(Expression::Name(String::from("b"))),
-                Rc::new(Expression::BinaryOperation(
+                Rc::new(RefCell::new(Expression::Name(String::from("b")))),
+                Rc::new(RefCell::new(Expression::BinaryOperation(
                     BinaryOp::Arithmetic(ArithBinOp::Minus),
-                    Rc::new(Expression::Name(String::from("c"))),
-                    Rc::new(Expression::Name(String::from("d"))),
+                    Rc::new(RefCell::new(Expression::Name(String::from("c")))),
+                    Rc::new(RefCell::new(Expression::Name(String::from("d")))),
                 )),
-            )),
+            ))),
         ),
-    );
+    ));
 }
 
 #[test]
@@ -345,19 +344,19 @@ fn test_nested_expression() {
             Token::RightBracket,
         ],
         Expression::FunctionCall {
-            name: Rc::new(Expression::Name(String::from("foo"))),
+            name: Rc::new(RefCell::new(Expression::Name(String::from("foo")))),
             args: vec![
-                Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("a"))),
+                Rc::new(RefCell::new(Expression::FunctionCall {
+                    name: Rc::new(RefCell::new(Expression::Name(String::from("a")))),
                     args: vec![
-                        Rc::new(Expression::Value(Value::Number(Number::Integer(12)))),
-                        Rc::new(Expression::Name(String::from("b"))),
+                        Rc::new(RefCell::new(Expression::Value(Value::Number(Number::Integer(12))))),
+                        Rc::new(RefCell::new(Expression::Name(String::from("b")))),
                     ],
-                }),
-                Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("c"))),
+                })),
+                Rc::new(RefCell::new(Expression::FunctionCall {
+                    name: Rc::new(RefCell::new(Expression::Name(String::from("c")))),
                     args: vec![],
-                }),
+                })),
             ],
         },
     );
@@ -397,14 +396,14 @@ fn test_assignments_name() {
             assignments: vec![
                 (
                     String::from("foo"),
-                    Rc::new(Expression::Name(String::from("bar")))
+                    Rc::new(RefCell::new(Expression::Name(String::from("bar"))))
                 ),
                 (
                     String::from("bar"),
-                    Rc::new(Expression::Name(String::from("foo")))
+                    Rc::new(RefCell::new(Expression::Name(String::from("foo"))))
                 )
             ],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+            statements: vec![Rc::new(RefCell::new(Expression::Name(String::from("foo"))))]
         }
     );
 }
@@ -452,18 +451,18 @@ fn test_function_multiple_args() {
         Scope::NonPure {
             assignments: vec![(
                 String::from("foo"),
-                Rc::new(Expression::Value(Value::Function {
+                Rc::new(RefCell::new(Expression::Value(Value::Function {
                     params: vec![String::from("a"), String::from("b")],
-                    scope: Box::new(Scope::Pure {
+                    scope: Box::new(RefCell::new(Scope::Pure {
                         assignments: vec![(
                             String::from("bar"),
-                            Rc::new(Expression::Value(Value::Number(Number::Integer(123))))
+                            Rc::new(RefCell::new(Expression::Value(Value::Number(Number::Integer(123)))))
                         )],
-                        expression: Rc::new(Expression::Name(String::from("foo")))
-                    })
+                        expression: Rc::new(RefCell::new(Expression::Name(String::from("foo"))))
+                    }))
                 }))
-            )],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+            ))],
+            statements: vec![Rc::new(RefCell::new(Expression::Name(String::from("foo"))))]
         }
     );
 }
@@ -499,15 +498,15 @@ fn test_function_no_args() {
         Scope::NonPure {
             assignments: vec![(
                 String::from("foo"),
-                Rc::new(Expression::Value(Value::Function {
+                Rc::new(RefCell::new(Expression::Value(Value::Function {
                     params: vec![],
-                    scope: Box::new(Scope::Pure {
+                    scope: Box::new(RefCell::new(Scope::Pure {
                         assignments: vec![],
-                        expression: Rc::new(Expression::Name(String::from("foo")))
-                    })
-                }))
+                        expression: Rc::new(RefCell::new(Expression::Name(String::from("foo"))))
+                    }))
+                })))
             )],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+            statements: vec![Rc::new(RefCell::new(Expression::Name(String::from("foo"))))]
         }
     );
 }
@@ -547,18 +546,18 @@ fn test_function_nonpure_no_args() {
         Scope::NonPure {
             assignments: vec![(
                 String::from("foo"),
-                Rc::new(Expression::Value(Value::Function {
+                Rc::new(RefCell::new(Expression::Value(Value::Function {
                     params: vec![],
-                    scope: Box::new(Scope::NonPure {
+                    scope: Box::new(RefCell::new(Scope::NonPure {
                         assignments: vec![],
                         statements: vec![
-                            Rc::new(Expression::Name(String::from("foo"))),
-                            Rc::new(Expression::Name(String::from("bar")))
+                            Rc::new(RefCell::new(Expression::Name(String::from("foo")))),
+                            Rc::new(RefCell::new(Expression::Name(String::from("bar"))))
                         ]
-                    })
-                }))
+                    }))
+                })))
             )],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+            statements: vec![Rc::new(RefCell::new(Expression::Name(String::from("foo"))))]
         }
     );
 }
@@ -613,22 +612,22 @@ fn test_if_else() {
         Scope::NonPure {
             assignments: vec![(
                 String::from("foo"),
-                Rc::new(Expression::If {
-                    condition: Rc::new(Expression::Name(String::from("bar"))),
-                    then_scope: Box::new(Scope::NonPure {
+                Rc::new(RefCell::new(Expression::If {
+                    condition: Rc::new(RefCell::new(Expression::Name(String::from("bar")))),
+                    then_scope: Box::new(RefCell::new(Scope::NonPure {
                         assignments: vec![(
                             String::from("foo"),
-                            Rc::new(Expression::Value(Value::Boolean(true)))
+                            Rc::new(RefCell::new(Expression::Value(Value::Boolean(true))))
                         )],
-                        statements: vec![Rc::new(Expression::Name(String::from("foo")))]
-                    }),
-                    else_scope: Box::new(Scope::NonPure {
+                        statements: vec![Rc::new(RefCell::new(Expression::Name(String::from("foo"))))]
+                    })),
+                    else_scope: Box::new(RefCell::new(Scope::NonPure {
                         assignments: vec![],
-                        statements: vec![Rc::new(Expression::Value(Value::Number(Number::Float(12.3))))]
-                    })
+                        statements: vec![Rc::new(RefCell::new(Expression::Value(Value::Number(Number::Float(12.3)))))]
+                    }))
                 })
-            )],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+            ))],
+            statements: vec![Rc::new(RefCell::new(Expression::Name(String::from("foo"))))]
         }
     );
 }
@@ -645,10 +644,10 @@ fn test_one_line_function_def() {
         ],
         Expression::Value(Value::Function {
             params: vec![String::from("a")],
-            scope: Box::new(Scope::Pure {
+            scope: Box::new(RefCell::new(Scope::Pure {
                 assignments: vec![],
-                expression: Rc::new(Expression::Name(String::from("a"))),
-            }),
+                expression: Rc::new(RefCell::new(Expression::Name(String::from("a")))),
+            })),
         }),
     )
 }
@@ -665,15 +664,15 @@ fn test_one_line_if_else() {
             Token::Name(String::from("a")),
         ],
         Expression::If {
-            condition: Rc::new(Expression::Name(String::from("a"))),
-            then_scope: Box::new(Scope::NonPure {
+            condition: Rc::new(RefCell::new(Expression::Name(String::from("a")))),
+            then_scope: Box::new(RefCell::new(Scope::NonPure {
                 assignments: vec![],
-                statements: vec![Rc::new(Expression::Name(String::from("a")))],
-            }),
-            else_scope: Box::new(Scope::NonPure {
+                statements: vec![Rc::new(RefCell::new(Expression::Name(String::from("a"))))],
+            })),
+            else_scope: Box::new(RefCell::new(Scope::NonPure {
                 assignments: vec![],
-                statements: vec![Rc::new(Expression::Name(String::from("a")))],
-            }),
+                statements: vec![Rc::new(RefCell::new(Expression::Name(String::from("a"))))],
+            })),
         },
     )
 }

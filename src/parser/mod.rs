@@ -2,6 +2,7 @@ pub mod enums;
 pub mod errors;
 #[cfg(test)]
 mod tests;
+use std::cell::RefCell;
 use std::iter::Peekable;
 use std::rc::Rc;
 use std::slice::Iter;
@@ -15,7 +16,7 @@ use crate::parser::errors::*;
 
 macro_rules! new_binary_operation {
     ($op:expr, $expr_1:expr, $expr_2:expr) => {
-        Expression::BinaryOperation($op, Rc::new($expr_1), Rc::new($expr_2))
+        Expression::BinaryOperation($op, Rc::new(RefCell::new($expr_1)), Rc::new(RefCell::new($expr_2)))
     };
 }
 
@@ -27,11 +28,11 @@ macro_rules! new_binary_operation {
 //     };
 // }
 
-fn new_scope_with_single_expr(expr: Expression, pure: bool) -> Box<Scope> {
+fn new_scope_with_single_expr(expr: Expression, pure: bool) -> Box<RefCell<Scope>> {
     if pure {
-        Box::new(Scope::Pure { assignments: vec![], expression: Rc::new(expr) })
+        Box::new(RefCell::new(Scope::Pure { assignments: vec![], expression: Rc::new(RefCell::new(expr)) }))
     } else {
-        Box::new(Scope::NonPure { assignments: vec![], statements: vec![Rc::new(expr)] })
+        Box::new(RefCell::new(Scope::NonPure { assignments: vec![], statements: vec![Rc::new(RefCell::new(expr))] }))
     }
 }
 
@@ -103,7 +104,7 @@ fn parse_args_list(
     next_lines: &mut Peekable<LinesIterator>,
     indentation: u16,
     pure: bool,
-) -> Result<Vec<Rc<Expression>>, ParserError> {
+) -> Result<Vec<Rc<RefCell<Expression>>>, ParserError> {
     let mut vec = vec![];
 
     loop {
@@ -118,7 +119,7 @@ fn parse_args_list(
             }
             _ => {
                 let expr = parse_expression(tokens, line_num, next_lines, indentation, pure)?;
-                vec.push(Rc::new(expr));
+                vec.push(Rc::new(RefCell::new(expr)));
                 match tokens.peek() {
                     Some(Token::Comma) => {
                         tokens.next().unwrap();
@@ -183,7 +184,7 @@ fn parse_expression(
                 tokens.next().unwrap();
                 let expr_vec = parse_args_list(tokens, line_num, next_lines, indentation, pure)?;
                 Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(string.clone())),
+                    name: Rc::new(RefCell::new(Expression::Name(string.clone()))),
                     args: expr_vec,
                 }
             } else {
@@ -203,11 +204,11 @@ fn parse_expression(
         Token::False => Expression::Value(Value::Boolean(false)),
         Token::Operation(Op::Minus) => {
             let expr = parse_expression(tokens, line_num, next_lines, indentation, pure)?;
-            Expression::UnaryOperation(UnaryOp::Minus, Rc::new(expr))
+            Expression::UnaryOperation(UnaryOp::Minus, Rc::new(RefCell::new(expr)))
         }
         Token::Operation(Op::Negation) => {
             let expr = parse_expression(tokens, line_num, next_lines, indentation, pure)?;
-            Expression::UnaryOperation(UnaryOp::Negation, Rc::new(expr))
+            Expression::UnaryOperation(UnaryOp::Negation, Rc::new(RefCell::new(expr)))
         }
         Token::Nil => Expression::Value(Value::Nil),
         Token::Cons => {
@@ -216,13 +217,13 @@ fn parse_expression(
                 Token::LeftBracket,
                 ParserError::LeftBracketExpected { line: line_num }
             );
-            let expr_1 = Rc::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?);
+            let expr_1 = Rc::new(RefCell::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?));
             assert_next_token!(
                 tokens,
                 Token::Comma,
                 ParserError::CommaExpected { line: line_num }
             );
-            let expr_2 = Rc::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?);
+            let expr_2 = Rc::new(RefCell::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?));
             assert_next_token!(
                 tokens,
                 Token::RightBracket,
@@ -236,7 +237,7 @@ fn parse_expression(
                 Token::LeftBracket,
                 ParserError::LeftBracketExpected { line: line_num }
             );
-            let expr = Rc::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?);
+            let expr = Rc::new(RefCell::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?));
             assert_next_token!(
                 tokens,
                 Token::RightBracket,
@@ -250,7 +251,7 @@ fn parse_expression(
                 Token::LeftBracket,
                 ParserError::LeftBracketExpected { line: line_num }
             );
-            let expr = Rc::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?);
+            let expr = Rc::new(RefCell::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?));
             assert_next_token!(
                 tokens,
                 Token::RightBracket,
@@ -264,7 +265,7 @@ fn parse_expression(
                 Token::LeftBracket,
                 ParserError::LeftBracketExpected { line: line_num }
             );
-            let expr = Rc::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?);
+            let expr = Rc::new(RefCell::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?));
             assert_next_token!(
                 tokens,
                 Token::RightBracket,
@@ -278,7 +279,7 @@ fn parse_expression(
                 Token::LeftBracket,
                 ParserError::LeftBracketExpected { line: line_num }
             );
-            let expr = Rc::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?);
+            let expr = Rc::new(RefCell::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?));
             assert_next_token!(
                 tokens,
                 Token::RightBracket,
@@ -304,7 +305,7 @@ fn parse_expression(
                 let expr = parse_expression(tokens, line_num, next_lines, indentation, false)?;
                 scope = new_scope_with_single_expr(expr, false);
             } else {
-                scope = Box::new(parse_scope(next_lines, indentation.into(), false)?);
+                scope = Box::new(RefCell::new(parse_scope(next_lines, indentation.into(), false)?));
             }
             
             Expression::Value(Value::Function {
@@ -318,7 +319,7 @@ fn parse_expression(
                 let expr = parse_expression(tokens, line_num, next_lines, indentation, pure)?;
                 scope = new_scope_with_single_expr(expr, true);
             } else {
-                scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
+                scope = Box::new(RefCell::new(parse_scope(next_lines, indentation.into(), true)?));
             }
             Expression::Value(Value::Function {
                 params: vec![],
@@ -337,7 +338,7 @@ fn parse_expression(
                 let expr = parse_expression(tokens, line_num, next_lines, indentation, pure)?;
                 scope = new_scope_with_single_expr(expr,true);
             } else {
-                scope = Box::new(parse_scope(next_lines, indentation.into(), true)?);
+                scope = Box::new(RefCell::new(parse_scope(next_lines, indentation.into(), true)?));
             }
             
             Expression::Value(Value::Function {
@@ -347,7 +348,7 @@ fn parse_expression(
         }
 
         Token::If => {
-            let condition = Rc::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?);
+            let condition = Rc::new(RefCell::new(parse_expression(tokens, line_num, next_lines, indentation, pure)?));
             assert_next_token!(
                 tokens,
                 Token::Then,
@@ -378,7 +379,7 @@ fn parse_expression(
                 }
             } else {
                 // if not on the same line, parse scope
-                then_scope = Box::new(parse_scope(next_lines, indentation.into(), pure)?);
+                then_scope = Box::new(RefCell::new(parse_scope(next_lines, indentation.into(), pure)?));
             }
 
             // if then_expression is not on the same line and else in not also
@@ -409,7 +410,7 @@ fn parse_expression(
                 let expr = parse_expression(&mut next_line_tokens, next_line.number, next_lines, next_line.indentation, pure)?;
                 else_scope = new_scope_with_single_expr(expr, pure);
             } else {
-                else_scope = Box::new(parse_scope(next_lines, indentation.into(), pure)?);
+                else_scope = Box::new(RefCell::new(parse_scope(next_lines, indentation.into(), pure)?));
             }
 
             Expression::If {
@@ -491,7 +492,7 @@ fn parse_line(
 fn handle_line(
     line: &Line,
     expressions: &mut Vec<Expression>,
-    assignments: &mut Vec<(String, Rc<Expression>)>,
+    assignments: &mut Vec<(String, Rc<RefCell<Expression>>)>,
     next_lines: &mut Peekable<LinesIterator>,
     indentation: u16,
     pure: bool,
@@ -518,7 +519,7 @@ fn handle_line(
                     ),
                 })
             } else {
-                assignments.push((string, Rc::new(exp)));
+                assignments.push((string, Rc::new(RefCell::new(exp))));
                 Ok(())
             }
         },
@@ -549,7 +550,7 @@ fn parse_scope(
     outside_indentation: i32,
     pure: bool,
 ) -> Result<Scope, ParserError> {    
-    let mut assignments = Vec::<(String, Rc<Expression>)>::new();
+    let mut assignments = Vec::<(String, Rc<RefCell<Expression>>)>::new();
     let mut expressions: Vec<Expression> = vec![];
     let mut last_line_number;
 
@@ -616,10 +617,10 @@ fn parse_scope(
             if expressions.len() != 1 {
                 panic!("Expressions must be no more than one in pure scope");
             }
-            Ok(Scope::Pure { assignments, expression: Rc::new(expressions.pop().unwrap()) })
+            Ok(Scope::Pure { assignments, expression: Rc::new(RefCell::new(expressions.pop().unwrap())) })
         }
     } else {
-        Ok(Scope::NonPure { assignments, statements: expressions.into_iter().map(Rc::new).collect() })
+        Ok(Scope::NonPure { assignments, statements: expressions.into_iter().map(|x| Rc::new(RefCell::new(x))).collect() })
     }
 }
 
