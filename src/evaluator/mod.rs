@@ -13,7 +13,7 @@ use crate::parser::enums::*;
 pub enum EvaluatorError {
     UnknownName(Rc<Expression>),
     FunctionExpected(Rc<Expression>),
-    ArgsAndParamsLensMismatch(Rc<Expression>),
+    ArgsAndParamsLengthsMismatch(Rc<Expression>),
     InvalidOperation {
         msg: String,
         expr: Rc<Expression>,
@@ -30,6 +30,19 @@ pub enum EvaluatorError {
         value_1: Value,
         value_2: Value,
     },
+}
+
+pub fn process_evaluator_error(err: EvaluatorError) -> String {
+    match err {
+        EvaluatorError::UnknownName(expression) => format!("Use of undeclared name in this scope: {:?}", expression),
+        EvaluatorError::FunctionExpected(expression) => format!("Expected function, actual expression is: {:?}", expression),
+        EvaluatorError::ArgsAndParamsLengthsMismatch(expression) => format!("Wrong number of arguments provided to the functions: {:?}", expression),
+        EvaluatorError::InvalidOperation { msg, expr } => format!("Invalid operation in the expression: {:?} {:?}", msg, expr),
+        EvaluatorError::SideEffectInPureScope(expr) => format!("Expression produces side effect in pure scope: {:?}", expr),
+        EvaluatorError::ConditionShouldEvaluateToBoolean(expr) => format!("Expression was expected to evaluate to boolean: {:?}", expr),
+        EvaluatorError::ComparisonError { op, value_1, value_2 } => format!("{:?} and {:?} cannot be compared with {:?}", value_1, value_2, op),
+        EvaluatorError::ArithmeticError { op, value_1, value_2 } => format!("Operation {:?} cannot be applied to {:?} and {:?}", op, value_1, value_2),
+    }
 }
 
 pub struct Evaluator<'a, R : Read, W: Write> {
@@ -185,7 +198,7 @@ impl<R, W> Evaluator<'_, R, W> where R: Read, W: Write {
                                 return Err(EvaluatorError::SideEffectInPureScope(name.clone()));
                             }
                             if args.len() != params.len() {
-                                return Err(EvaluatorError::ArgsAndParamsLensMismatch(
+                                return Err(EvaluatorError::ArgsAndParamsLengthsMismatch(
                                     name.clone(),
                                 ));
                             }

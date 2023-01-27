@@ -2,7 +2,7 @@ use std::{env, fs::File, path, io::{self, Read, Write, BufWriter, BufReader, std
 #[macro_use] extern crate educe;
 
 use lexer::lines;
-use parser::{parse, enums::{Value, Number}};
+use parser::{parse, enums::{Value, Number}, errors::process_parser_error};
 use evaluator::*;
 
 mod evaluator;
@@ -32,10 +32,10 @@ impl<R, W> Interpreter<R, W> where R: Read, W: Write {
                     Ok(Value::Nil) => std::process::exit(0),
                     Ok(Value::Number(Number::Integer(code))) => std::process::exit(code),
                     Ok(_) => (),
-                    Err(e) => println!("{:?}", e),
+                    Err(e) => self.output.write_fmt(format_args!("{}", process_evaluator_error(e))).unwrap(),
                 }
             }
-            Err(e) => self.output.write_fmt(format_args!("{:?}", e)).unwrap(),
+            Err(e) => self.output.write_fmt(format_args!("{}", process_parser_error(e))).unwrap(),
         };
     }
 
@@ -63,6 +63,5 @@ fn main() {
         }
     };
 
-    
     Interpreter::new(stdin(), stdout(), false).run(file);
 }
