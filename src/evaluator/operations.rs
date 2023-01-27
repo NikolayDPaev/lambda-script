@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, io::{BufWriter, Write}};
 
 use crate::parser::enums::{Value, Number, UnaryOp, BinaryOp, Expression, BoolBinOp, CmpBinOp, ArithBinOp};
 
@@ -33,26 +33,26 @@ fn try_string(value: &Value) -> Option<String> {
     }
 }
 
-pub fn print(value: &Value) {
+pub fn print<W: Write>(value: &Value, output: &mut BufWriter<W>) {
     match value {
-        Value::Boolean(true) => print!("true"),
-        Value::Boolean(false) => print!("false"),
-        Value::Nil => print!("nil"),
-        Value::Number(Number::Float(f)) => print!("{}", f),
-        Value::Number(Number::Integer(i)) => print!("{}", i),
-        Value::Char(char) => print!("\'{}\'", char),
+        Value::Boolean(true) => output.write_fmt(format_args!("true")).unwrap(),
+        Value::Boolean(false) => output.write_fmt(format_args!("false")).unwrap(),
+        Value::Nil => output.write_fmt(format_args!("nil")).unwrap(),
+        Value::Number(Number::Float(f)) => output.write_fmt(format_args!("{}", f)).unwrap(),
+        Value::Number(Number::Integer(i)) => output.write_fmt(format_args!("{}", i)).unwrap(),
+        Value::Char(char) => output.write_fmt(format_args!("\'{}\'", char)).unwrap(),
         Value::Tuple(left, right) => {
             if let Some(string) = try_string(value) {
-                print!("\"{}\"", string);
+                output.write_fmt(format_args!("\"{}\"", string)).unwrap();
                 return;
             }
-            print!("(");
-            print(left);
-            print!(", ");
-            print(right);
-            print!(")");
+            output.write_fmt(format_args!("(")).unwrap();
+            print(left, output);
+            output.write_fmt(format_args!(", ")).unwrap();
+            print(right, output);
+            output.write_fmt(format_args!(")")).unwrap();
         },
-        Value::Function { params, .. } => print!("Function[{}]", params.len()),
+        Value::Function { params, .. } => output.write_fmt(format_args!("Function[{}]", params.len())).unwrap(),
     }
 }
 

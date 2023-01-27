@@ -1,19 +1,21 @@
 use super::*;
 
-macro_rules! test_expression {
-    ($e: expr, $v: expr) => {
-        assert_eq!(
-            Evaluator::new()
-                .force_eval(Rc::new($e), HashTrieMap::new(), true)
-                .unwrap(),
-            $v
-        )
-    };
+fn test_expression(e: Expression, v: Value) {
+    let inner_input = vec![];
+    let mut input: BufReader<_> = BufReader::new(inner_input.as_slice());
+    let mut output = BufWriter::new(vec![]);
+    let mut evaluator = Evaluator::new(&mut input, &mut output, false);
+    assert_eq!(
+        evaluator
+            .force_eval(Rc::new(e), HashTrieMap::new(), true)
+            .unwrap(),
+        v
+    )
 }
 
 macro_rules! test_arithmetic_num_expression {
     ($n1: expr, $op: expr, $n2: expr, $r: expr) => {
-        test_expression!(
+        test_expression (
             Expression::BinaryOperation(
                 BinaryOp::Arithmetic($op),
                 Rc::new(Expression::Value(Value::Number($n1))),
@@ -66,7 +68,7 @@ fn evaluate_arithmetic_operations() {
 
 macro_rules! test_cmp_num_expression {
     ($n1: expr, $op: expr, $n2: expr, $r: expr) => {
-        test_expression!(
+        test_expression (
             Expression::BinaryOperation(
                 BinaryOp::Compare($op),
                 Rc::new(Expression::Value(Value::Number($n1))),
@@ -143,7 +145,7 @@ fn evaluate_cmp_num_operations() {
 
 macro_rules! test_cmp_eq_expression {
     ($n1: expr, $n2: expr, $r: expr) => {
-        test_expression!(
+        test_expression (
             Expression::BinaryOperation(
                 BinaryOp::Compare(CmpBinOp::Eq),
                 Rc::new(Expression::Value($n1)),
@@ -167,7 +169,7 @@ fn test_eq() {
 
 macro_rules! test_bool_expression {
     ($n1: expr, $op: expr, $n2: expr, $r: expr) => {
-        test_expression!(
+        test_expression (
             Expression::BinaryOperation(
                 BinaryOp::Boolean($op),
                 Rc::new(Expression::Value($n1)),
@@ -192,7 +194,7 @@ fn test_bool() {
 
 macro_rules! test_arithmetic_expression {
     ($n1: expr, $op: expr, $n2: expr, $r: expr) => {
-        test_expression!(
+        test_expression (
             Expression::BinaryOperation(
                 BinaryOp::Arithmetic($op),
                 Rc::new(Expression::Value($n1)),
@@ -227,35 +229,35 @@ fn evaluate_char_operations() {
 
 #[test]
 fn evaluate_cons_operations() {
-    test_expression!(
+    test_expression (
         Expression::Cons(
             Rc::new(Expression::Value(Value::Boolean(true))),
             Rc::new(Expression::Value(Value::Char('a')))
         ),
         Value::Tuple(Box::new(Value::Boolean(true)), Box::new(Value::Char('a')))
     );
-    test_expression!(
+    test_expression (
         Expression::Left(Rc::new(Expression::Cons(
             Rc::new(Expression::Value(Value::Boolean(true))),
             Rc::new(Expression::Value(Value::Char('a')))
         ))),
         Value::Boolean(true)
     );
-    test_expression!(
+    test_expression (
         Expression::Right(Rc::new(Expression::Cons(
             Rc::new(Expression::Value(Value::Boolean(true))),
             Rc::new(Expression::Value(Value::Char('a')))
         ))),
         Value::Char('a')
     );
-    test_expression!(
+    test_expression (
         Expression::Empty(Rc::new(Expression::Cons(
             Rc::new(Expression::Value(Value::Boolean(true))),
             Rc::new(Expression::Value(Value::Char('a')))
         ))),
         Value::Boolean(false)
     );
-    test_expression!(
+    test_expression (
         Expression::Empty(Rc::new(Expression::Value(Value::Nil))),
         Value::Boolean(true)
     );
@@ -263,7 +265,7 @@ fn evaluate_cons_operations() {
 
 #[test]
 fn evaluate_if_else() {
-    test_expression!(
+    test_expression (
         Expression::If { 
             condition: Rc::new(Expression::Value(Value::Boolean(true))), 
             then_scope: Box::new(Scope::Pure { assignments: vec![], expression: Rc::new(Expression::Value(Value::Boolean(false))) }), 
@@ -271,7 +273,7 @@ fn evaluate_if_else() {
         },
         Value::Boolean(false)
     );
-    test_expression!(
+    test_expression (
         Expression::If { 
             condition: Rc::new(Expression::Value(Value::Boolean(false))), 
             then_scope: Box::new(Scope::Pure { assignments: vec![], expression: Rc::new(Expression::Value(Value::Boolean(false))) }), 
@@ -283,8 +285,12 @@ fn evaluate_if_else() {
 
 #[test]
 fn evaluate_pure_function() {
+    let inner_input = vec![];
+    let mut input: BufReader<_> = BufReader::new(inner_input.as_slice());
+    let mut output = BufWriter::new(vec![]);
+    let mut evaluator = Evaluator::new(&mut input, &mut output, false);
     assert_eq!(
-        Evaluator::new()
+        evaluator
             .force_eval(
                 Rc::new(Expression::FunctionCall {
                     name: Rc::new(Expression::Name(String::from("f"))),

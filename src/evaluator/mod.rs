@@ -3,6 +3,7 @@ mod operations;
 mod tests;
 use by_address::ByAddress;
 use rpds::HashTrieMap;
+use std::io::{Write, Read, BufRead, BufReader, BufWriter};
 use std::{collections::HashMap, rc::Rc};
 
 use crate::evaluator::operations::*;
@@ -31,8 +32,11 @@ pub enum EvaluatorError {
     },
 }
 
-pub struct Evaluator {
-    memoization_map: HashMap<ByAddress<Rc<Expression>>, Rc<Expression>>,
+pub struct Evaluator<'a, R : Read, W: Write> {
+    memoization_map: HashMap<ByAddress<Rc<Expression>>, Value>,
+    input: &'a mut BufReader<R>,
+    output: &'a mut BufWriter<W>,
+    debug: bool
 }
 
 macro_rules! add_outside_assignments {
@@ -74,11 +78,14 @@ fn try_resolve_name(
     }
 }
 
-impl Evaluator {
-    pub fn new() -> Evaluator {
-        return Evaluator {
+impl<R, W> Evaluator<'_, R, W> where R: Read, W: Write {
+    pub fn new<'a>(input: &'a mut BufReader<R>, output: &'a mut BufWriter<W>, debug: bool) -> Evaluator<'a, R, W> {
+        Evaluator {
             memoization_map: HashMap::new(),
-        };
+            input,
+            output,
+            debug,
+        }
     }
 
     pub fn eval_outside_scope(&mut self, scope: &Scope) -> Result<Value, EvaluatorError> {
@@ -101,9 +108,6 @@ impl Evaluator {
         let mut expression = expr.clone();
         loop {
             if let Expression::Value(value) = expression.as_ref() {
-                if memoize && matches!(expr.as_ref(), Expression::Thunk(..)) {
-                    self.memoization_map.insert(ByAddress(expr), Rc::new(Expression::Value(value.clone())));
-                }
                 return Ok(value.clone());
             }
             //println!("Evaluating expression: {:?}", expression);
@@ -153,20 +157,25 @@ impl Evaluator {
         assignments: HashTrieMap<String, Rc<Expression>>,
         memoize: bool,
     ) -> Result<Rc<Expression>, EvaluatorError> {
-        if let Some(expression) = self.memoization_map.get(&ByAddress(expr.clone())) {
-            println!("using memoization for: {:?}", expression);
-            return Ok(expression.clone());
-        } else {
+        if self.debug {
+            self.output.write_fmt(format_args!("Evaluating: {:?}\n", expr)).unwrap();
+        }
+        // if let Some(expression) = self.memoization_map.get(&ByAddress(expr.clone())) {
+        //     //println!("using memoization for: {:?}", expression);
+        //     return Ok(Rc::new(Expression::Value(expression.clone())));
+        // } else {
             let expr = try_resolve_name(expr, assignments.clone())?;
             let result = match expr.as_ref() {
                 Expression::Value(_) => expr.clone(),
                 Expression::Thunk(expr, env, memoize) => {
-                    let result = self.eval_expression(expr.clone(), env.clone(), *memoize)?;
                     if matches!(expr.as_ref(), Expression::ReadCall) {
+                        let value = self.force_eval(expr.clone(), env.clone(), *memoize)?;
                         self.memoization_map
-                            .insert(ByAddress(expr.clone()), result.clone());
+                            .insert(ByAddress(expr.clone()), value.clone());
+                        Rc::new(Expression::Value(value))
+                    } else {
+                        self.eval_expression(expr.clone(), env.clone(), *memoize)?
                     }
-                    result
                 }
                 Expression::Name(_) => panic!("expression is name after resolving"),
                 Expression::FunctionCall { name, args } => {
@@ -212,11 +221,10 @@ impl Evaluator {
                         return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
                     }
                     if let Some(expression) = self.memoization_map.get(&ByAddress(expr.clone())) {
-                        //println!("using memoization for: {:?}", expression);
-                        return Ok(expression.clone());
+                        return Ok(Rc::new(Expression::Value(expression.clone())));
                     }
                     let mut string = String::new();
-                    std::io::stdin().read_line(&mut string).unwrap();
+                    self.input.read_line(&mut string).unwrap();
 
                     if string.ends_with('\n') {
                         string.pop();
@@ -231,8 +239,9 @@ impl Evaluator {
                         return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
                     }
                     let value = self.force_eval(inside_expr.clone(), assignments, memoize)?;
-                    print(&value);
-                    println!();
+                    print(&value, &mut self.output);
+                    self.output.write(b"\n").unwrap();
+                    self.output.flush().unwrap();
                     Rc::new(Expression::Value(Value::Nil))
                 }
                 Expression::Cons(left, right) => match (left.as_ref(), right.as_ref()) {
@@ -351,4 +360,4 @@ impl Evaluator {
             Ok(result)
         }
     }
-}
+//}
