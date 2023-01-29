@@ -35,24 +35,24 @@ fn try_string(value: &Value) -> Option<String> {
 
 pub fn print<W: Write>(value: &Value, output: &mut BufWriter<W>) {
     match value {
-        Value::Boolean(true) => output.write_fmt(format_args!("true")).unwrap(),
-        Value::Boolean(false) => output.write_fmt(format_args!("false")).unwrap(),
-        Value::Nil => output.write_fmt(format_args!("nil")).unwrap(),
-        Value::Number(Number::Float(f)) => output.write_fmt(format_args!("{}", f)).unwrap(),
-        Value::Number(Number::Integer(i)) => output.write_fmt(format_args!("{}", i)).unwrap(),
-        Value::Char(char) => output.write_fmt(format_args!("\'{}\'", char)).unwrap(),
+        Value::Boolean(true) => write!(output, "true").unwrap(),
+        Value::Boolean(false) => write!(output, "false").unwrap(),
+        Value::Nil => write!(output, "nil").unwrap(),
+        Value::Number(Number::Float(f)) => write!(output, "{}", f).unwrap(),
+        Value::Number(Number::Integer(i)) => write!(output, "{}", i).unwrap(),
+        Value::Char(char) => write!(output, "\'{}\'", char).unwrap(),
         Value::Tuple(left, right) => {
             if let Some(string) = try_string(value) {
-                output.write_fmt(format_args!("\"{}\"", string)).unwrap();
+                write!(output, "{}", string).unwrap();
                 return;
             }
-            output.write_fmt(format_args!("(")).unwrap();
+            write!(output, "(").unwrap();
             print(left, output);
-            output.write_fmt(format_args!(", ")).unwrap();
+            write!(output, ", ").unwrap();
             print(right, output);
-            output.write_fmt(format_args!(")")).unwrap();
+            write!(output, ")").unwrap();
         },
-        Value::Function { params, .. } => output.write_fmt(format_args!("Function[{}]", params.len())).unwrap(),
+        Value::Function { params, .. } => write!(output, "Function[{}]", params.len()).unwrap(),
     }
 }
 
