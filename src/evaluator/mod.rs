@@ -1,80 +1,16 @@
+pub mod errors;
 mod operations;
 #[cfg(test)]
 mod tests;
+
 use by_address::ByAddress;
 use rpds::HashTrieMap;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::{collections::HashMap, rc::Rc};
 
+use crate::evaluator::errors::EvaluatorError;
 use crate::evaluator::operations::*;
 use crate::parser::enums::*;
-
-#[derive(Debug)]
-pub enum EvaluatorError {
-    UnknownName(Rc<Expression>),
-    FunctionExpected(Rc<Expression>),
-    ArgsAndParamsLengthsMismatch(Rc<Expression>),
-    InvalidOperation {
-        msg: String,
-        expr: Rc<Expression>,
-    },
-    SideEffectInPureScope(Rc<Expression>),
-    UnexpectedRead(),
-    ConditionShouldEvaluateToBoolean(Rc<Expression>),
-    ComparisonError {
-        op: CmpBinOp,
-        value_1: Value,
-        value_2: Value,
-    },
-    ArithmeticError {
-        op: ArithBinOp,
-        value_1: Value,
-        value_2: Value,
-    },
-}
-
-pub fn process_evaluator_error(err: EvaluatorError) -> String {
-    match err {
-        EvaluatorError::UnknownName(expression) => {
-            format!("Use of undeclared name in this scope: {:?}", expression)
-        }
-        EvaluatorError::FunctionExpected(expression) => {
-            format!("Expected function, actual expression is: {:?}", expression)
-        }
-        EvaluatorError::ArgsAndParamsLengthsMismatch(expression) => format!(
-            "Wrong number of arguments provided to the functions: {:?}",
-            expression
-        ),
-        EvaluatorError::InvalidOperation { msg, expr } => {
-            format!("Invalid operation in the expression: {:?} {:?}", msg, expr)
-        }
-        EvaluatorError::SideEffectInPureScope(expr) => {
-            format!("Expression produces side effect in pure scope: {:?}", expr)
-        }
-        EvaluatorError::ConditionShouldEvaluateToBoolean(expr) => {
-            format!("Expression was expected to evaluate to boolean: {:?}", expr)
-        }
-        EvaluatorError::ComparisonError {
-            op,
-            value_1,
-            value_2,
-        } => format!(
-            "{:?} and {:?} cannot be compared with {:?}",
-            value_1, value_2, op
-        ),
-        EvaluatorError::ArithmeticError {
-            op,
-            value_1,
-            value_2,
-        } => format!(
-            "Operation {:?} cannot be applied to {:?} and {:?}",
-            op, value_1, value_2
-        ),
-        EvaluatorError::UnexpectedRead() => format!(
-            "Read call at invalid position. The only possible place for the read is as assignment expression in non pure scope"
-        ),
-    }
-}
 
 macro_rules! add_outside_assignments {
     ($outside_assignments: expr, $assignments: expr) => {
@@ -88,11 +24,15 @@ macro_rules! add_outside_assignments {
 
 macro_rules! make_thunk {
     ($expr:expr, $assignments: expr, $memoize: expr) => {
-        Rc::new(Expression::Thunk(
-            $expr.clone(),
-            $assignments.clone(),
-            $memoize,
-        ))
+        match $expr.as_ref() {
+            Expression::Thunk(..) => $expr.clone(),
+            Expression::Value(..) => $expr.clone(),
+            _ => Rc::new(Expression::Thunk(
+                $expr.clone(),
+                $assignments.clone(),
+                $memoize,
+            )),
+        }
     };
 }
 
@@ -146,11 +86,13 @@ where
             if let Expression::Value(value) = expression.as_ref() {
                 return Ok(value.clone());
             }
-
             expression = self.eval_expression(expression, HashTrieMap::new(), false)?;
         }
     }
 
+
+    // Right now the memoization happens only at low level, because it is done by address
+    // and there are Rc::new calls that create new addresses
     fn force_eval(
         &mut self,
         expr: Rc<Expression>,
@@ -162,18 +104,14 @@ where
         loop {
             if memoize && matches!(expression.as_ref(), Expression::Thunk(..)) {
                 thunk_stack.push(expression.clone());
-                //println!("Evaluating thunk: {:?}", expression);
             }
             if let Expression::Value(value) = expression.as_ref() {
-                // if expression is thunk and then we evaluate it to value we memoize the result
                 while let Some(thunk) = thunk_stack.pop() {
-                    //println!("Putting in map thunk: {:?}", thunk);
                     self.thunk_memoization_map
                         .insert(ByAddress(thunk.clone()), expression.clone());
                 }
                 return Ok(value.clone());
             }
-            // println!("Evaluating expression: {:?}", expression);
             expression = self.eval_expression(expression, assignments.clone(), memoize)?
         }
     }
@@ -211,6 +149,7 @@ where
                 let assignments_map = assignments
                     .into_iter()
                     .map(|(name, expr)| match expr.as_ref() {
+                        // if assignment expression is read call, force its evaluation
                         Expression::ReadCall => (name, self.force_read()),
                         _ => (name, expr.clone()),
                     })
@@ -238,26 +177,27 @@ where
         memoize: bool,
     ) -> Result<Rc<Expression>, EvaluatorError> {
         if self.debug {
-            self.output
-                .write_fmt(format_args!("Evaluating: {:?}\n", expr))
-                .unwrap();
+            writeln!(self.output, "Evaluating: {:?}\n", expr).unwrap();
         }
-        //let expr = try_resolve_name(expr, assignments.clone())?;
         let result = match expr.as_ref() {
             Expression::Value(_) => expr.clone(),
             Expression::Thunk(inside_expr, env, memoize) => {
                 if let Some(expression) = self.thunk_memoization_map.get(&ByAddress(expr.clone())) {
-                    //println!("using memoization for: {:?}", expression);
+                    if self.debug {
+                        writeln!(
+                            self.output,
+                            "Using memoization for: {:?} -> {:?}",
+                            expr, expression
+                        )
+                        .unwrap();
+                    }
                     return Ok(expression.clone());
                 }
                 self.eval_expression(inside_expr.clone(), env.clone(), *memoize)?
             }
             Expression::Name(name) => {
                 if let Some(expr) = assignments.get(name) {
-                    match expr.as_ref() {
-                        Expression::Thunk(..) => expr.clone(),
-                        _ => make_thunk!(expr.clone(), assignments, memoize),
-                    }
+                    make_thunk!(expr.clone(), assignments, memoize)
                 } else {
                     return Err(EvaluatorError::UnknownName(expr));
                 }

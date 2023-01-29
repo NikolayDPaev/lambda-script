@@ -4,6 +4,7 @@ use std::{env, fs::File, path, io::{self, Read, Write, BufWriter, BufReader, std
 use lexer::lines;
 use parser::{parse, enums::{Value, Number}, errors::process_parser_error};
 use evaluator::*;
+use evaluator::errors::process_evaluator_error;
 
 #[cfg(test)]
 mod tests;
@@ -41,7 +42,6 @@ impl<R, W> Interpreter<R, W> where R: Read, W: Write {
         };
         return 1;
     }
-
 }
 
 fn main() {
@@ -50,12 +50,21 @@ fn main() {
         path.push("resources");
     }
 
+    let mut debug = false;
     let arg = match env::args().nth(1) {
-        Some(arg) => arg,
-        _ => {
+        Some(arg) if arg == "-d" || arg == "--debug" => {
+            debug = true;
+            match env::args().nth(2) {
+                Some(arg) => arg,
+                _ => std::process::exit(1)
+            }
+        },
+        Some(arg) if arg == "-h" || arg == "--help" => {
             println!("Usage: lambda-script.exe <file>");
-            std::process::exit(1)
-        }
+            std::process::exit(0)
+        },
+        Some(arg) => arg,
+        _ => std::process::exit(1)
     };
 
     let file = match File::open(arg) {
@@ -65,6 +74,6 @@ fn main() {
             std::process::exit(1)
         }
     };
-    let code = Interpreter::new(stdin(), stdout(), false).run(file);
+    let code = Interpreter::new(stdin(), stdout(), debug).run(file);
     std::process::exit(code);
 }

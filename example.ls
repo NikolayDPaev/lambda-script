@@ -3,7 +3,7 @@ import "lib.ls"
 genNaturalsFrom = [n] ->
     cons(n, genNaturalsFrom(n + 1))
 
-print(length(take(5, genNaturalsFrom(5))))
+print(length(take(50, genNaturalsFrom(5))))
 
 fibList = cons(0, cons(1, zipMap([x, y] -> x + y, zip(fibList, right(fibList)))))
 print(take(10, fibList))
