@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use crate::lexer::enums::*;
 use crate::lexer::Line;
+use crate::parser::errors::ParserErrorKind::*;
 use crate::parser::*;
 
 fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
@@ -10,7 +11,7 @@ fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
         indentation: 0,
         tokens,
     })];
-    let result = parse(Box::new(lines.into_iter())).unwrap();
+    let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
         Scope::NonPure {
@@ -26,7 +27,7 @@ fn test_one_line_expression_error(tokens: Vec<Token>, error: ParserError) {
         indentation: 0,
         tokens,
     })];
-    let result = parse(Box::new(lines.into_iter()));
+    let result = parse(Box::new(lines.into_iter()), "");
     assert_eq!(result, Err(error));
 }
 
@@ -59,7 +60,11 @@ fn test_values() {
     );
     test_one_line_expression_error(
         vec![Token::Number(String::from("1a23"))],
-        ParserError::NumberParseError { line: 1 },
+        ParserError {
+            kind: NumberParseError,
+            filename: String::from(""),
+            line: 1,
+        },
     );
     test_one_line_expression(
         vec![Token::Number(String::from("123.5"))],
@@ -67,7 +72,11 @@ fn test_values() {
     );
     test_one_line_expression_error(
         vec![Token::Number(String::from("1.a23"))],
-        ParserError::NumberParseError { line: 1 },
+        ParserError {
+            kind: NumberParseError,
+            filename: String::from(""),
+            line: 1,
+        },
     );
     test_one_line_expression(
         vec![Token::Char(String::from("a"))],
@@ -75,11 +84,19 @@ fn test_values() {
     );
     test_one_line_expression_error(
         vec![Token::Char(String::from("abc"))],
-        ParserError::CharParseError { line: 1 },
+        ParserError {
+            kind: CharParseError,
+            filename: String::from(""),
+            line: 1,
+        },
     );
     test_one_line_expression_error(
         vec![Token::Char(String::from(""))],
-        ParserError::CharParseError { line: 1 },
+        ParserError {
+            kind: CharParseError,
+            filename: String::from(""),
+            line: 1,
+        },
     );
     test_one_line_expression(vec![Token::True], Expression::Value(Value::Boolean(true)));
     test_one_line_expression(vec![Token::False], Expression::Value(Value::Boolean(false)));
@@ -110,7 +127,11 @@ fn test_builtin_functions() {
             Token::Name(String::from("foo")),
             Token::RightBracket,
         ],
-        ParserError::CommaExpected { line: 1 },
+        ParserError {
+            kind: CommaExpected,
+            filename: String::from(""),
+            line: 1,
+        },
     );
 
     test_one_line_expression(
@@ -145,7 +166,11 @@ fn test_builtin_functions() {
 
     test_one_line_expression_error(
         vec![Token::Right],
-        ParserError::LeftBracketExpected { line: 1 },
+        ParserError {
+            kind: LeftBracketExpected,
+            filename: String::from(""),
+            line: 1,
+        },
     );
 
     test_one_line_expression(vec![Token::Read], Expression::ReadCall);
@@ -390,7 +415,7 @@ fn test_assignments_name() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = parse(Box::new(lines.into_iter())).unwrap();
+    let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
         Scope::NonPure {
@@ -446,7 +471,7 @@ fn test_function_multiple_args() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = parse(Box::new(lines.into_iter())).unwrap();
+    let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
         Scope::NonPure {
@@ -493,7 +518,7 @@ fn test_function_no_args() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = parse(Box::new(lines.into_iter())).unwrap();
+    let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
         Scope::NonPure {
@@ -541,7 +566,7 @@ fn test_function_nonpure_no_args() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = parse(Box::new(lines.into_iter())).unwrap();
+    let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
         Scope::NonPure {
@@ -607,7 +632,7 @@ fn test_if_else() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = parse(Box::new(lines.into_iter())).unwrap();
+    let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
         Scope::NonPure {
@@ -624,7 +649,9 @@ fn test_if_else() {
                     }),
                     else_scope: Box::new(Scope::NonPure {
                         assignments: vec![],
-                        statements: vec![Rc::new(Expression::Value(Value::Number(Number::Float(12.3))))]
+                        statements: vec![Rc::new(Expression::Value(Value::Number(Number::Float(
+                            12.3
+                        ))))]
                     })
                 })
             )],

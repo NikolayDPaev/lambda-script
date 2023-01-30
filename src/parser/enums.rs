@@ -1,17 +1,21 @@
-use std::{rc::Rc, cmp::Ordering, fmt::{Formatter, self}};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Formatter},
+    rc::Rc,
+};
 
 use rpds::HashTrieMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Scope {
-    Pure{
+    Pure {
         assignments: Vec<(String, Rc<Expression>)>,
         expression: Rc<Expression>,
     },
-    NonPure{
+    NonPure {
         assignments: Vec<(String, Rc<Expression>)>,
         statements: Vec<Rc<Expression>>,
-    }
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -65,7 +69,7 @@ pub enum Value {
     Function {
         params: Vec<String>,
         scope: Box<Scope>,
-    }
+    },
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -110,13 +114,19 @@ pub enum UnaryOp {
 }
 
 fn fmt(tree: &HashTrieMap<String, Rc<Expression>>, f: &mut Formatter) -> fmt::Result {
-    write!(f, "{:?}", tree.iter().filter(|(_, expr)| {
-        match expr.as_ref() {
-            Expression::Value(Value::Function { .. }) => false,
-            Expression::Value(_) => true,
-            _ => false,
-        }
-    }).collect::<Vec<_>>())
+    write!(
+        f,
+        "{:?}",
+        tree.iter()
+            .filter(|(_, expr)| {
+                match expr.as_ref() {
+                    Expression::Value(Value::Function { .. }) => false,
+                    Expression::Value(_) => true,
+                    _ => false,
+                }
+            })
+            .collect::<Vec<_>>()
+    )
 }
 
 #[derive(Educe)]
@@ -127,10 +137,8 @@ pub enum Expression {
     Name(String),
     Thunk(
         Rc<Expression>,
-        #[educe(Debug(method = "fmt"))]
-        HashTrieMap<String, Rc<Expression>>,
-        #[educe(Debug(ignore))]
-        bool,
+        #[educe(Debug(method = "fmt"))] HashTrieMap<String, Rc<Expression>>,
+        #[educe(Debug(ignore))] bool,
     ),
     FunctionCall {
         name: Rc<Expression>,
@@ -138,7 +146,7 @@ pub enum Expression {
     },
     ReadCall,
     PrintCall(Rc<Expression>),
-    Cons(Rc<Expression>,Rc<Expression>),
+    Cons(Rc<Expression>, Rc<Expression>),
     Left(Rc<Expression>),
     Right(Rc<Expression>),
     Empty(Rc<Expression>),
@@ -148,5 +156,5 @@ pub enum Expression {
         condition: Rc<Expression>,
         then_scope: Box<Scope>,
         else_scope: Box<Scope>,
-    }
+    },
 }
