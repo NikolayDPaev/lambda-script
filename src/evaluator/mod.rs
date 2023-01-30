@@ -90,7 +90,6 @@ where
         }
     }
 
-
     // Right now the memoization happens only at low level, because it is done by address
     // and there are Rc::new calls that create new addresses
     fn force_eval(

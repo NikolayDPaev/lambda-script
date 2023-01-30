@@ -1,9 +1,9 @@
+pub mod enums;
 #[cfg(test)]
 mod tests;
-pub mod enums;
 
-use std::io::{BufRead, BufReader, Read};
 use enums::*;
+use std::io::{BufRead, BufReader, Read};
 
 #[derive(Debug)]
 pub struct Line {
@@ -181,7 +181,7 @@ impl Line {
                 tokens.push(Token::Operation(Op::Xor));
             } else if ch == '+' {
                 tokens.push(Token::Operation(Op::Plus));
-            }else if ch == '/' {
+            } else if ch == '/' {
                 if matches!(iter.peek(), Some(x) if *x == '/') {
                     iter.next();
                     tokens.push(Token::Operation(Op::IntDivision));

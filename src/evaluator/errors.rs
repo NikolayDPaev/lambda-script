@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::parser::enums::{Expression, CmpBinOp, Value, ArithBinOp};
+use crate::parser::enums::{ArithBinOp, CmpBinOp, Expression, Value};
 
 #[derive(Debug)]
 pub enum EvaluatorError {

@@ -87,7 +87,6 @@ fn test_indentation() {
     assert_eq!(lines[6].as_ref().unwrap().number, 7);
     assert_eq!(lines[7].as_ref().unwrap().indentation, 8);
     assert_eq!(lines[7].as_ref().unwrap().number, 8);
-    
 }
 
 #[test]
