@@ -2,7 +2,7 @@
 Course project for Programming with Rust:  
 Interpreter for Custom Functional Programming language with lazy evaluation
 
-## Some code examples:
+## Some code examples
 ```
 length = [list] -> if empty(list) then 0 else 1 + length(right(list))
 
@@ -24,7 +24,7 @@ outputs:
 
 # Very short description
 
-## Expressions:
+## Expressions
 **Expressions** are lazily evaluated by default. Expressions are:
  - **values**: Function, Boolean, Number, Char, Tuple(Value, Value), Nil
  - **names**
@@ -61,7 +61,7 @@ Example:
 print(2 + 5) # This is another comment
 ```
 
-## Function Syntax:
+## Function Syntax
 ```
 [<name>, <name>, ...] -> <expression>
 
@@ -90,13 +90,13 @@ nonpure [<name>, <name>, ...] ->
     <expression>
 ```
 
-## Assignments syntax:
+## Assignments syntax
 ```
 <name> = <expression>
 <name> = read
 ```
 
-## If else expressions syntax:
+## If else expressions syntax
 ```
 if <expression> then <expression> else <expression>
 
