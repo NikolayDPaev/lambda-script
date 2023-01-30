@@ -1,9 +1,8 @@
 use crate::Interpreter;
 
 #[test]
-fn infinite_gen_test() {
-    let script =
-"take = [n, list] ->
+fn test_infinite_gen() {
+    let script = "take = [n, list] ->
     if (n == 0) | empty(list) then
         nil
     else
@@ -17,9 +16,8 @@ print(take(3, genNaturalsFrom(1)))";
     let mut output = Vec::<u8>::new();
     let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
 
-    assert_eq!(interpreter.run(script.as_bytes()), 0);
+    assert_eq!(interpreter.run(script.as_bytes(), ""), 0);
     std::mem::drop(interpreter);
-    println!("{:?}", output);
     assert_eq!(
         String::from_utf8(output).unwrap(),
         String::from("(1, (2, (3, nil)))\n")
@@ -27,9 +25,8 @@ print(take(3, genNaturalsFrom(1)))";
 }
 
 #[test]
-fn higher_order_function_test() {
-    let script =
-"map = [f, list] ->
+fn test_higher_order_function() {
+    let script = "map = [f, list] ->
     if empty(list) then
         nil
     else
@@ -45,9 +42,8 @@ print(map(square, list))";
     let mut output = Vec::<u8>::new();
     let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
 
-    assert_eq!(interpreter.run(script.as_bytes()), 0);
+    assert_eq!(interpreter.run(script.as_bytes(), ""), 0);
     std::mem::drop(interpreter);
-    println!("{:?}", output);
     assert_eq!(
         String::from_utf8(output).unwrap(),
         String::from("(1, (4, (9, (16, (25, nil)))))\n")
@@ -55,9 +51,30 @@ print(map(square, list))";
 }
 
 #[test]
-fn guess_char_test() {
-    let script =
-"
+fn test_return_higher_order_function() {
+    let script = "getFunction = [char] ->
+    if char == '+' then
+        [x, y] -> x + y
+    else if char == '-' then
+        [x, y] -> x - y
+    else nil
+
+plus = getFunction('+')
+print(plus(1, 2))
+
+print(getFunction('-')(2.5, 2))";
+    let input = vec![];
+    let mut output = Vec::<u8>::new();
+    let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
+
+    assert_eq!(interpreter.run(script.as_bytes(), ""), 0);
+    std::mem::drop(interpreter);
+    assert_eq!(String::from_utf8(output).unwrap(), String::from("3\n0.5\n"));
+}
+
+#[test]
+fn test_guess_char() {
+    let script = "
 actual = 'f'
 guess = nonpure ->
     input = read
@@ -78,11 +95,10 @@ guess()
     let mut output = Vec::<u8>::new();
     let mut interpreter = Interpreter::new(input.as_bytes(), &mut output, false);
 
-    assert_eq!(interpreter.run(script.as_bytes()), 0);
+    assert_eq!(interpreter.run(script.as_bytes(), ""), 0);
     std::mem::drop(interpreter);
     assert_eq!(
         String::from_utf8(output).unwrap(),
         String::from("Guess char\nHigher\nLower\nSuccess\n")
     );
 }
-
