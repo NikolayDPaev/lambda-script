@@ -44,6 +44,16 @@ filter = [predicate, list] ->
         else
             filter(predicate, right(list))
 
+foldRight = [list, f, init] ->
+    if empty(list) then init
+    else 
+        f(left(list), foldRight(right(list), f, init))
+
+foldLeft = [list, f, init] ->
+    if empty(list) then init
+    else
+        foldLeft(right(list), f, f(left(list), init))
+
 parseNumber = [list] ->
     parse = [list, n] ->
         if empty(list) then
