@@ -87,14 +87,9 @@ fn parse_binary_operation(
 }
 
 pub fn parse_string(string: &str) -> Value {
-    if string.len() == 0 {
-        Value::Nil
-    } else {
-        Value::Tuple(
-            Box::new(Value::Char(string.chars().next().unwrap())),
-            Box::new(parse_string(&string[1..string.len()])),
-        )
-    }
+    string.chars().rev().fold(Value::Nil, |acc, x| {
+        Value::Tuple(Box::new(Value::Char(x)), Box::new(acc))
+    })
 }
 
 fn parse_number(string: &str, line_num: u32, filename: &str) -> Result<Expression, ParserError> {
@@ -236,7 +231,7 @@ fn parse_expression(
         Token::Number(string) => parse_number(string, line_num, filename)?,
         Token::Str(string) => Expression::Value(parse_string(string)),
         Token::Char(string) => {
-            if string.len() != 1 {
+            if string.chars().count() != 1 {
                 return Err(ParserError {
                     kind: ParserErrorKind::CharParseError,
                     filename: filename.to_string(),

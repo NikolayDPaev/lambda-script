@@ -25,8 +25,7 @@ macro_rules! add_outside_assignments {
 macro_rules! make_thunk {
     ($expr:expr, $assignments: expr, $memoize: expr) => {
         match $expr.as_ref() {
-            Expression::Thunk(..) => $expr.clone(),
-            Expression::Value(..) => $expr.clone(),
+            Expression::Thunk(..) | Expression::Value(..) => $expr.clone(),
             _ => Rc::new(Expression::Thunk(
                 $expr.clone(),
                 $assignments.clone(),
@@ -99,13 +98,13 @@ where
         memoize: bool,
     ) -> Result<Value, EvaluatorError> {
         let mut expression = expr.clone();
-        let mut thunk_stack = vec![];
+        let mut thunks_for_memo = vec![];
         loop {
             if memoize && matches!(expression.as_ref(), Expression::Thunk(..)) {
-                thunk_stack.push(expression.clone());
+                thunks_for_memo.push(expression.clone());
             }
             if let Expression::Value(value) = expression.as_ref() {
-                while let Some(thunk) = thunk_stack.pop() {
+                while let Some(thunk) = thunks_for_memo.pop() {
                     self.thunk_memoization_map
                         .insert(ByAddress(thunk.clone()), expression.clone());
                 }
@@ -145,6 +144,8 @@ where
                 assignments,
                 statements,
             } => {
+                // add the outside assignments and the assignments
+                // eval the read calls
                 let assignments_map = assignments
                     .into_iter()
                     .map(|(name, expr)| match expr.as_ref() {
@@ -155,7 +156,7 @@ where
                     .fold(outside_assignments.clone(), |acc, (key, value)| {
                         acc.insert(key.clone(), value.clone())
                     });
-                //let assignments_map = add_outside_assignments!(outside_assignments, assignments);
+
                 let mut last_expr = Rc::new(Expression::Value(Value::Nil));
                 for expr in statements {
                     last_expr = Rc::new(Expression::Value(self.force_eval(
