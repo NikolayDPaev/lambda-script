@@ -26,17 +26,23 @@ outputs:
 
 ## Expressions
 **Expressions** are lazily evaluated by default. Expressions are:
- - **values**: Function, Boolean, Number, Char, Tuple(Value, Value), Nil
- - **names**
+ - **values**:
+   - Function
+   - Boolean
+   - Number - internally represented as 32 bit integer or 64 bit float
+   - Char - single unicode character
+   - Tuple(Value, Value)
+   - Nil
+ - **names** - aliases of other names or expressions
  - **function calls**
- - **if else expression**
+ - **if then else expression**
  - **unary operation**: ```-``` and ```!```
  - **binary operation**: ```& | ^ + - / // * ** % == != < > <= >= ```
  - **expression in brackets**: ```(<expression>)```
 
 ## Functions
 **Functions** are first class objects and can be two types:
-- **Pure** (default): have assignments and only one expression. Calling nonpure functions in pure scope will result in error. Lazy evaluation in pure functions definition is guaranteed.
+- **Pure** (default): have assignments and only one expression. Calling nonpure functions in the body of pure function (pure scope) will result in error. Lazy evaluation in pure functions is guaranteed.
 - **Nonpure**: can have multiple expressions each evaluated eagerly. Print and read calls are nonpure. The outside scope is also non pure.
 
 Built-in functions:
@@ -60,6 +66,17 @@ Example:
 # This is a comment
 print(2 + 5) # This is another comment
 ```
+
+## Operators
+- `+` `-` `*` `%` `==` `!=` `<` `>` `<=` `>=` have the expected behavior   
+- `!` `&` `|` `^` - are the boolean **negation**, **and**, **or** and **xor**   
+- `/` is floating point **division**  
+- `//`is **integer** **division**  
+- `**` is **exponentiation**  
+- Arithmetic operations on numbers will cast their inner representation to floats if necessary.  
+- **char** +/- **char** results in **number**
+- **number** +/- **char** results in **number**
+- **char** +/- **number** results in **char**
 
 ## Function Syntax
 ```
