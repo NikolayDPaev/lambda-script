@@ -113,6 +113,7 @@ pub enum UnaryOp {
     Minus,
 }
 
+// for debugging of hashTrieMap
 fn fmt(tree: &HashTrieMap<String, Rc<Expression>>, f: &mut Formatter) -> fmt::Result {
     write!(
         f,
