@@ -1,3 +1,5 @@
+# List functions
+
 length = [list] -> if empty(list) then 0 else 1 + length(right(list))
 
 map = [f, list] ->
@@ -53,6 +55,13 @@ foldLeft = [list, f, init] ->
     if empty(list) then init
     else
         foldLeft(right(list), f, f(left(list), init))
+
+cat = [xs, ys] ->
+    if empty(xs) then ys
+    else cons(left(xs), cat(right(xs), ys))
+
+
+# Other functions
 
 parseNumber = [list] ->
     parse = [list, n] ->
