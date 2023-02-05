@@ -25,6 +25,15 @@ macro_rules! add_outside_assignments {
 macro_rules! make_thunk {
     ($expr:expr, $assignments: expr, $memoize: expr) => {
         match $expr.as_ref() {
+            // If the expression is a function then in its body it might have names
+            // referring to expressions in the context at declaration.
+            // That is why we must preserve the context.
+            Expression::Value(Value::Function{..}) => Rc::new(Expression::Thunk(
+                $expr.clone(),
+                $assignments.clone(),
+                $memoize,
+            )),
+            // if the expression is thunk or value, it does not need its context
             Expression::Thunk(..) | Expression::Value(..) => $expr.clone(),
             _ => Rc::new(Expression::Thunk(
                 $expr.clone(),
