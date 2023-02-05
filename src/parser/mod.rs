@@ -758,13 +758,14 @@ fn handle_line(
                 None => PathBuf::from(import_filename),
             };
             let import_path_str = import_path.to_string_lossy().to_string();
-            let file = File::open(import_path.clone()).or(Err(ParserError {
+            let file = File::open(import_path.clone()).map_err(|err| ParserError {
                 kind: ParserErrorKind::CannotImportFile {
                     import_filename: import_path_str.clone(),
+                    error_message: err.to_string()
                 },
                 filename: filename.to_string(),
                 line: line.number,
-            }))?;
+            })?;
 
             let lines = lines(file);
             let scope = parse(lines, &import_path_str)?;

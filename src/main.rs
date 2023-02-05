@@ -93,7 +93,7 @@ fn main() {
     let file = match File::open(filename.clone()) {
         io::Result::Ok(file) => file,
         io::Result::Err(error) => {
-            println!("Cannot open file: {:?} with error: {:?}", filename, error);
+            println!("Cannot open file: {:?}. Error: {}", filename, error.to_string());
             std::process::exit(1)
         }
     };
