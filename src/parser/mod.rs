@@ -27,7 +27,7 @@ fn new_scope_with_single_expr(expr: Expression, pure: bool) -> Box<Scope> {
             expression: Rc::new(expr),
         })
     } else {
-        Box::new(Scope::NonPure {
+        Box::new(Scope::Impure {
             assignments: vec![],
             statements: vec![Rc::new(expr)],
         })
@@ -415,7 +415,7 @@ fn parse_expression(
             Expression::PrintCall(expr)
         }
         Token::Read => Expression::ReadCall,
-        Token::NonPure => {
+        Token::Impure => {
             let mut params = Vec::new();
             if let Some(Token::LeftBoxBracket) = tokens.peek() {
                 tokens.next().unwrap();
@@ -770,7 +770,7 @@ fn handle_line(
             let scope = parse(lines, &import_path_str)?;
 
             match scope {
-                Scope::NonPure {
+                Scope::Impure {
                     assignments: mut import_assignments,
                     statements,
                 } => {
@@ -901,7 +901,7 @@ fn parse_scope(
             })
         }
     } else {
-        Ok(Scope::NonPure {
+        Ok(Scope::Impure {
             assignments,
             statements: expressions.into_iter().map(Rc::new).collect(),
         })

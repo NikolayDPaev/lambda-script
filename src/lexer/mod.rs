@@ -87,8 +87,8 @@ impl Line {
                     tokens.push(Token::True);
                 } else if string == "false" {
                     tokens.push(Token::False);
-                } else if string == "nonpure" {
-                    tokens.push(Token::NonPure);
+                } else if string == "impure" {
+                    tokens.push(Token::Impure);
                 } else if string == "cons" {
                     tokens.push(Token::Cons);
                 } else if string == "left" {

@@ -12,7 +12,7 @@ pub enum Scope {
         assignments: Vec<(String, Rc<Expression>)>,
         expression: Rc<Expression>,
     },
-    NonPure {
+    Impure {
         assignments: Vec<(String, Rc<Expression>)>,
         statements: Vec<Rc<Expression>>,
     },

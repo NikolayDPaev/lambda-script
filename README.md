@@ -42,8 +42,8 @@ outputs:
 
 ## Functions
 **Functions** are first class objects and can be two types:
-- **Pure** (default): have assignments and only one expression. Calling nonpure functions in the body of pure function (pure scope) will result in error. Lazy evaluation in pure functions is guaranteed.
-- **Nonpure**: can have multiple expressions each evaluated eagerly. Print and read calls are nonpure. The outside scope is also non pure.
+- **Pure** (default): have assignments and only one expression. Calling impure functions in the body of pure function (pure scope) will result in error. Lazy evaluation in pure functions is guaranteed.
+- **Impure**: can have multiple expressions each evaluated eagerly. Print and read calls are impure. The outside scope is also non pure.
 
 Built-in functions:
  - ```read``` reads line from the std in and returns list of characters. The only valid place for this expression is in assignment.
@@ -92,15 +92,15 @@ print(2 + 5) # This is another comment
 [<name>, <name>, ...] ->
     <expression>
 
-nonpure -> <expression>
+impure -> <expression>
 
-nonpure ->
+impure ->
     <assignment> or <expression>
     <assignment> or <expression>
     ...
     <expression>
 
-nonpure [<name>, <name>, ...] -> 
+impure [<name>, <name>, ...] -> 
     <assignment> or <expression>
     <assignment> or <expression>
     ...

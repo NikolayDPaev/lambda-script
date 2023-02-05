@@ -76,7 +76,7 @@ print(getFunction('-')(2.5, 2))";
 fn test_guess_char() {
     let script = "
 actual = 'f'
-guess = nonpure ->
+guess = impure ->
     input = read
     input_char = left(input)
     if actual == input_char then

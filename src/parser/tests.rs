@@ -14,7 +14,7 @@ fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
     let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
-        Scope::NonPure {
+        Scope::Impure {
             assignments: vec![],
             statements: vec![Rc::new(expression)],
         }
@@ -418,7 +418,7 @@ fn test_assignments_name() {
     let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
-        Scope::NonPure {
+        Scope::Impure {
             assignments: vec![
                 (
                     String::from("foo"),
@@ -474,7 +474,7 @@ fn test_function_multiple_args() {
     let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
-        Scope::NonPure {
+        Scope::Impure {
             assignments: vec![(
                 String::from("foo"),
                 Rc::new(Expression::Value(Value::Function {
@@ -521,7 +521,7 @@ fn test_function_no_args() {
     let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
-        Scope::NonPure {
+        Scope::Impure {
             assignments: vec![(
                 String::from("foo"),
                 Rc::new(Expression::Value(Value::Function {
@@ -538,7 +538,7 @@ fn test_function_no_args() {
 }
 
 #[test]
-fn test_function_nonpure_no_args() {
+fn test_function_impure_no_args() {
     let lines: Vec<Result<Line, std::io::Error>> = vec![
         Ok(Line {
             number: 1,
@@ -546,7 +546,7 @@ fn test_function_nonpure_no_args() {
             tokens: vec![
                 Token::Name(String::from("foo")),
                 Token::Assignment,
-                Token::NonPure,
+                Token::Impure,
                 Token::Arrow,
             ],
         }),
@@ -569,12 +569,12 @@ fn test_function_nonpure_no_args() {
     let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
-        Scope::NonPure {
+        Scope::Impure {
             assignments: vec![(
                 String::from("foo"),
                 Rc::new(Expression::Value(Value::Function {
                     params: vec![],
-                    scope: Box::new(Scope::NonPure {
+                    scope: Box::new(Scope::Impure {
                         assignments: vec![],
                         statements: vec![
                             Rc::new(Expression::Name(String::from("foo"))),
@@ -635,19 +635,19 @@ fn test_if_else() {
     let result = parse(Box::new(lines.into_iter()), "").unwrap();
     assert_eq!(
         result,
-        Scope::NonPure {
+        Scope::Impure {
             assignments: vec![(
                 String::from("foo"),
                 Rc::new(Expression::If {
                     condition: Rc::new(Expression::Name(String::from("bar"))),
-                    then_scope: Box::new(Scope::NonPure {
+                    then_scope: Box::new(Scope::Impure {
                         assignments: vec![(
                             String::from("foo"),
                             Rc::new(Expression::Value(Value::Boolean(true)))
                         )],
                         statements: vec![Rc::new(Expression::Name(String::from("foo")))]
                     }),
-                    else_scope: Box::new(Scope::NonPure {
+                    else_scope: Box::new(Scope::Impure {
                         assignments: vec![],
                         statements: vec![Rc::new(Expression::Value(Value::Number(Number::Float(
                             12.3
@@ -693,11 +693,11 @@ fn test_one_line_if_else() {
         ],
         Expression::If {
             condition: Rc::new(Expression::Name(String::from("a"))),
-            then_scope: Box::new(Scope::NonPure {
+            then_scope: Box::new(Scope::Impure {
                 assignments: vec![],
                 statements: vec![Rc::new(Expression::Name(String::from("a")))],
             }),
-            else_scope: Box::new(Scope::NonPure {
+            else_scope: Box::new(Scope::Impure {
                 assignments: vec![],
                 statements: vec![Rc::new(Expression::Name(String::from("a")))],
             }),

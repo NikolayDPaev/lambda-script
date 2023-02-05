@@ -341,7 +341,7 @@ fn test_evaluate_read_print_function() {
                     String::from("f"),
                     Rc::new(Expression::Value(Value::Function {
                         params: vec![],
-                        scope: Box::new(Scope::NonPure {
+                        scope: Box::new(Scope::Impure {
                             assignments: vec![(String::from("b"), Rc::new(Expression::ReadCall))],
                             statements: vec![
                                 Rc::new(Expression::PrintCall(Rc::new(Expression::Name(

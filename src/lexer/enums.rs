@@ -17,7 +17,7 @@ pub enum Token {
     Comma,
     LeftBoxBracket,
     RightBoxBracket,
-    NonPure,
+    Impure,
     Cons,
     Left,
     Right,

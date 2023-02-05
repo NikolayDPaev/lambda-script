@@ -140,7 +140,7 @@ where
 
                 Ok(make_thunk!(expression.clone(), assignments_map, true))
             }
-            Scope::NonPure {
+            Scope::Impure {
                 assignments,
                 statements,
             } => {
@@ -205,7 +205,7 @@ where
             Expression::FunctionCall { name, args } => {
                 match self.force_eval(name.clone(), assignments.clone(), memoize)? {
                     Value::Function { params, scope } => {
-                        if memoize && matches!(scope.as_ref(), Scope::NonPure { .. }) {
+                        if memoize && matches!(scope.as_ref(), Scope::Impure { .. }) {
                             return Err(EvaluatorError::SideEffectInPureScope(name.clone()));
                         }
                         if args.len() != params.len() {

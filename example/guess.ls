@@ -1,5 +1,5 @@
 actual = 'f'
-guess = nonpure ->
+guess = impure ->
     input = read
     input_char = left(input)
     if actual == input_char then
