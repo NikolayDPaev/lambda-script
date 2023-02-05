@@ -238,7 +238,7 @@ where
                 }
             }
             Expression::ReadCall => {
-                // Reads must have been evaluated in the evaluation of non pure scope
+                // Reads must have been evaluated in the evaluation of impure scope
                 return Err(EvaluatorError::UnexpectedRead());
             }
             Expression::PrintCall(inside_expr) => {

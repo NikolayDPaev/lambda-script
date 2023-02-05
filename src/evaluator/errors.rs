@@ -64,7 +64,7 @@ pub fn process_evaluator_error(err: EvaluatorError) -> String {
             op, value_1, value_2
         ),
         EvaluatorError::UnexpectedRead() => format!(
-            "Read call at invalid position. The only possible place for the read is as assignment expression in non pure scope"
+            "Read call at invalid position. The only possible place for the read is as assignment expression in impure scope"
         ),
     }
 }

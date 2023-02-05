@@ -43,7 +43,7 @@ outputs:
 ## Functions
 **Functions** are first class objects and can be two types:
 - **Pure** (default): have assignments and only one expression. Calling impure functions in the body of pure function (pure scope) will result in error. Lazy evaluation in pure functions is guaranteed.
-- **Impure**: can have multiple expressions each evaluated eagerly. Print and read calls are impure. The outside scope is also non pure.
+- **Impure**: can have multiple expressions each evaluated eagerly. Print and read calls are impure. The outside scope is also impure.
 
 Built-in functions:
  - ```read``` reads line from the std in and returns list of characters. The only valid place for this expression is in assignment.
