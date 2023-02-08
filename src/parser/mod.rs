@@ -20,133 +20,6 @@ macro_rules! new_binary_operation {
     };
 }
 
-fn new_scope_with_single_expr(expr: Expression, pure: bool) -> Box<Scope> {
-    if pure {
-        Box::new(Scope::Pure {
-            assignments: vec![],
-            expression: Rc::new(expr),
-        })
-    } else {
-        Box::new(Scope::Impure {
-            assignments: vec![],
-            statements: vec![Rc::new(expr)],
-        })
-    }
-}
-
-fn parse_binary_operation(
-    op: &Op,
-    expr_1: Expression,
-    expr_2: Expression,
-    line_num: u32,
-    filename: &str,
-) -> Result<Expression, ParserError> {
-    Ok(match op {
-        Op::And => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::And), expr_1, expr_2),
-        Op::Or => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::Or), expr_1, expr_2),
-        Op::Xor => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::Xor), expr_1, expr_2),
-        Op::Plus => new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Plus), expr_1, expr_2),
-        Op::Minus => new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Minus), expr_1, expr_2),
-        Op::Division => {
-            new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Division), expr_1, expr_2)
-        }
-        Op::IntDivision => {
-            new_binary_operation!(
-                BinaryOp::Arithmetic(ArithBinOp::IntDivision),
-                expr_1,
-                expr_2
-            )
-        }
-        Op::Multiplication => new_binary_operation!(
-            BinaryOp::Arithmetic(ArithBinOp::Multiplication),
-            expr_1,
-            expr_2
-        ),
-        Op::Exponentiation => new_binary_operation!(
-            BinaryOp::Arithmetic(ArithBinOp::Exponentiation),
-            expr_1,
-            expr_2
-        ),
-        Op::Modulo => {
-            new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Modulo), expr_1, expr_2)
-        }
-        Op::Eq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Eq), expr_1, expr_2),
-        Op::NEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::NEq), expr_1, expr_2),
-        Op::Lt => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Lt), expr_1, expr_2),
-        Op::Gt => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Gt), expr_1, expr_2),
-        Op::LEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::LEq), expr_1, expr_2),
-        Op::GEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::GEq), expr_1, expr_2),
-        Op::Negation => {
-            return Err(ParserError {
-                kind: ParserErrorKind::OpError,
-                line: line_num,
-                filename: filename.to_string(),
-            })
-        }
-    })
-}
-
-pub fn parse_string(string: &str) -> Value {
-    string.chars().rev().fold(Value::Nil, |acc, x| {
-        Value::Tuple(Box::new(Value::Char(x)), Box::new(acc))
-    })
-}
-
-fn parse_number(string: &str, line_num: u32, filename: &str) -> Result<Expression, ParserError> {
-    if let Some(integer) = string.parse::<i32>().ok() {
-        Ok(Expression::Value(Value::Number(Number::Integer(integer))))
-    } else if let Some(float) = string.parse::<f64>().ok() {
-        Ok(Expression::Value(Value::Number(Number::Float(float))))
-    } else {
-        Err(ParserError {
-            kind: ParserErrorKind::NumberParseError,
-            filename: filename.to_string(),
-            line: line_num,
-        })
-    }
-}
-
-fn parse_name_list(
-    tokens: &mut Peekable<Iter<Token>>,
-    line_num: u32,
-    filename: &str,
-) -> Result<Vec<String>, ParserError> {
-    let mut vec = vec![];
-    loop {
-        let token = tokens.next().ok_or(ParserError {
-            kind: ParserErrorKind::UnexpectedEndOfLine,
-            filename: filename.to_string(),
-            line: line_num,
-        })?;
-        match token {
-            Token::RightBoxBracket => return Ok(vec),
-            Token::Name(string) => {
-                vec.push(string.clone());
-                match tokens.peek() {
-                    Some(Token::Comma) => {
-                        tokens.next().unwrap();
-                    }
-                    Some(Token::RightBoxBracket) => (),
-                    _ => {
-                        return Err(ParserError {
-                            kind: ParserErrorKind::CommaExpected,
-                            filename: filename.to_string(),
-                            line: line_num,
-                        })
-                    }
-                };
-            }
-            _ => {
-                return Err(ParserError {
-                    kind: ParserErrorKind::NameExpected,
-                    filename: filename.to_string(),
-                    line: line_num,
-                })
-            }
-        };
-    }
-}
-
 macro_rules! assert_next_token {
     ($tokens:expr, $token:pat, $error:expr) => {
         match $tokens.next() {
@@ -189,87 +62,216 @@ impl Parser {
         }
     }
 
-    fn parse_built_in_unary_function(
-        &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
-        indentation: u16,
-        pure: bool,
-    ) -> Result<Expression, ParserError> {
-        assert_next_token!(
-            tokens,
-            Token::LeftBracket,
-            self.produce_error(ParserErrorKind::LeftBracketExpected, line_num)
-        );
-        let expr = self.parse_expression(tokens, line_num, indentation, pure)?;
-        assert_next_token!(
-            tokens,
-            Token::RightBracket,
-            self.produce_error(ParserErrorKind::UnbalancedBracketsError, line_num)
-        );
-        Ok(expr)
+    fn parse_scope(&mut self, outside_indentation: i32, pure: bool) -> Result<Scope, ParserError> {
+        let mut assignments = Vec::<(String, Rc<Expression>)>::new();
+        let mut expressions: Vec<Expression> = vec![];
+        let mut last_line_number;
+
+        let line = self
+            .next_lines
+            .next()
+            .ok_or(self.produce_error(ParserErrorKind::UnexpectedEOF, 0))?
+            .map_err(|_| self.produce_error(ParserErrorKind::LexerError, 0))?;
+
+        last_line_number = line.number;
+
+        let scope_indentation = line.indentation;
+        if scope_indentation as i32 <= outside_indentation {
+            return Err(self.produce_error(
+                ParserErrorKind::IndentationError {
+                    msg: String::from("Scope has to be indented"),
+                    expected: outside_indentation + 1,
+                    actual: outside_indentation,
+                },
+                line.number,
+            ));
+        }
+
+        self.handle_scope_line(
+            &line,
+            &mut expressions,
+            &mut assignments,
+            scope_indentation,
+            pure,
+        )?;
+
+        while let Some(line_result) = self.next_lines.peek() {
+            let next_line = line_result.as_ref().map_err(|_| ParserError {
+                kind: ParserErrorKind::PeekError,
+                filename: self.filename.clone(),
+                line: last_line_number,
+            })?;
+            last_line_number = next_line.number;
+
+            if next_line.indentation < scope_indentation
+                && next_line.indentation as i32 <= outside_indentation
+            {
+                // end of scope
+                break;
+            } else if outside_indentation > 0 && next_line.indentation < scope_indentation {
+                // scope has not ended yet but has different indentation
+                return Err(self.produce_error(
+                    ParserErrorKind::IndentationError {
+                        msg: String::from("The indentation of a scope should be the same"),
+                        expected: scope_indentation as i32,
+                        actual: line.indentation as i32,
+                    },
+                    last_line_number,
+                ));
+            } else {
+                // scope has not ended and has valid indentation
+                let line = self.next_lines.next().unwrap().map_err(|_| ParserError {
+                    kind: ParserErrorKind::LexerError,
+                    filename: self.filename.clone(),
+                    line: last_line_number,
+                })?;
+
+                self.handle_scope_line(
+                    &line,
+                    &mut expressions,
+                    &mut assignments,
+                    scope_indentation,
+                    pure,
+                )?;
+            }
+        }
+
+        if pure {
+            if expressions.len() == 0 {
+                Err(self.produce_error(ParserErrorKind::ExpressionExpected, last_line_number))
+            } else {
+                if expressions.len() != 1 {
+                    panic!("Expressions must be no more than one in pure scope");
+                }
+                Ok(Scope::Pure {
+                    assignments,
+                    expression: Rc::new(expressions.pop().unwrap()),
+                })
+            }
+        } else {
+            Ok(Scope::Impure {
+                assignments,
+                statements: expressions.into_iter().map(Rc::new).collect(),
+            })
+        }
     }
 
-    fn parse_built_in_binary_function(
+    // mutates the expressions and assignments vectors of the scope
+    fn handle_scope_line(
         &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
+        line: &Line,
+        expressions: &mut Vec<Expression>,
+        assignments: &mut Vec<(String, Rc<Expression>)>,
         indentation: u16,
         pure: bool,
-    ) -> Result<(Expression, Expression), ParserError> {
-        assert_next_token!(
-            tokens,
-            Token::LeftBracket,
-            self.produce_error(ParserErrorKind::LeftBracketExpected, line_num)
-        );
-        let expr_1 = self.parse_expression(tokens, line_num, indentation, pure)?;
-        assert_next_token!(
-            tokens,
-            Token::Comma,
-            self.produce_error(ParserErrorKind::CommaExpected, line_num)
-        );
-        let expr_2 = self.parse_expression(tokens, line_num, indentation, pure)?;
-        assert_next_token!(
-            tokens,
-            Token::RightBracket,
-            self.produce_error(ParserErrorKind::UnbalancedBracketsError, line_num)
-        );
-        Ok((expr_1, expr_2))
+    ) -> Result<(), ParserError> {
+        let parsed = self.parse_line(line, indentation, pure)?;
+        match parsed {
+            FunctionLine::Expression(exp) => {
+                if pure && expressions.len() > 0 {
+                    return Err(self.produce_error(
+                        ParserErrorKind::ReturnExpressionError {
+                            msg: String::from("A pure scope can only have 1 expression!"),
+                        },
+                        line.number,
+                    ));
+                } else {
+                    expressions.push(exp);
+                    Ok(())
+                }
+            }
+            FunctionLine::Assignment(string, exp) => {
+                if pure && expressions.len() == 1 {
+                    return Err(self.produce_error(
+                        ParserErrorKind::ReturnExpressionError {
+                            msg: String::from(
+                                "Cannot have assignments after expression in a single pure scope!",
+                            ),
+                        },
+                        line.number,
+                    ));
+                } else {
+                    assignments.push((string, Rc::new(exp)));
+                    Ok(())
+                }
+            }
+            FunctionLine::Import(import_filename) => {
+                let import_path = match PathBuf::from(self.filename.clone()).parent() {
+                    Some(parent) => parent.join(import_filename),
+                    None => PathBuf::from(import_filename),
+                };
+                let import_path_str = import_path.to_string_lossy().to_string();
+                let file = File::open(import_path.clone()).map_err(|err| {
+                    self.produce_error(
+                        ParserErrorKind::CannotImportFile {
+                            import_filename: import_path_str.clone(),
+                            error_message: err.to_string(),
+                        },
+                        line.number,
+                    )
+                })?;
+
+                let lines = lines(file);
+                let scope = Parser::new(lines, &import_path_str).parse_outside_scope()?;
+
+                match scope {
+                    Scope::Impure {
+                        assignments: mut import_assignments,
+                        statements,
+                    } => {
+                        assignments.append(&mut import_assignments);
+                        if !statements.is_empty() {
+                            return Err(self.produce_error(
+                                ParserErrorKind::UnexpectedExpressionInTopLevelOfImport,
+                                line.number,
+                            ));
+                        }
+                    }
+                    Scope::Pure { .. } => panic!("Unexpected Pure scope in import"),
+                };
+                Ok(())
+            }
+            FunctionLine::Empty => Ok(()),
+        }
     }
 
-    fn parse_args_list(
+    // parses the line and returns expression, assignment, import of empty line
+    fn parse_line(
         &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
+        line: &Line,
         indentation: u16,
         pure: bool,
-    ) -> Result<Vec<Rc<Expression>>, ParserError> {
-        let mut vec = vec![];
+    ) -> Result<FunctionLine, ParserError> {
+        let tokens = &line.tokens;
 
-        loop {
-            let token = tokens
-                .peek()
-                .ok_or(self.produce_error(ParserErrorKind::UnexpectedEndOfLine, line_num))?;
-
-            match token {
-                Token::RightBracket => {
-                    tokens.next().unwrap();
-                    return Ok(vec);
+        if tokens.len() == 0 {
+            Ok(FunctionLine::Empty)
+        } else if tokens.len() == 2 && matches!(tokens[0], Token::Import) {
+            match &tokens[1] {
+                Token::Str(string) => Ok(FunctionLine::Import(string.clone())),
+                _ => Err(self.produce_error(ParserErrorKind::FilenameStringExpected, line.number)),
+            }
+        } else if tokens.len() > 2 && matches!(tokens[1], Token::Assignment) {
+            match &tokens[0] {
+                Token::Name(string) => {
+                    let mut iter = tokens[2..].iter().peekable();
+                    let expression =
+                        self.parse_expression(&mut iter, line.number, indentation, pure)?;
+                    Ok(FunctionLine::Assignment(string.clone(), expression))
                 }
-                _ => {
-                    let expr = self.parse_expression(tokens, line_num, indentation, pure)?;
-                    vec.push(Rc::new(expr));
-                    match tokens.peek() {
-                        Some(Token::Comma) => {
-                            tokens.next().unwrap();
-                        }
-                        Some(Token::RightBracket) => (),
-                        _ => {
-                            return Err(self.produce_error(ParserErrorKind::CommaExpected, line_num))
-                        }
-                    };
-                }
-            };
+                _ => Err(self.produce_error(
+                    ParserErrorKind::AssignmentError {
+                        msg: String::from(
+                            "The token on the left side of the assignment is not a name!",
+                        ),
+                    },
+                    line.number,
+                )),
+            }
+        } else {
+            let mut iter = tokens.iter().peekable();
+            self.parse_expression(&mut iter, line.number, indentation, pure)
+                .map(|exp| FunctionLine::Expression(exp))
         }
     }
 
@@ -319,29 +321,29 @@ impl Parser {
                 Token::Nil => Expression::Value(Value::Nil),
                 Token::Cons => {
                     let (expr_1, expr_2) =
-                        self.parse_built_in_binary_function(tokens, line_num, indentation, pure)?;
+                        self.parse_built_in_binary_function_call(tokens, line_num, indentation, pure)?;
                     Expression::Cons(Rc::new(expr_1), Rc::new(expr_2))
                 }
-                Token::Left => Expression::Left(Rc::new(self.parse_built_in_unary_function(
+                Token::Left => Expression::Left(Rc::new(self.parse_built_in_unary_function_call(
                     tokens,
                     line_num,
                     indentation,
                     pure,
                 )?)),
-                Token::Right => Expression::Right(Rc::new(self.parse_built_in_unary_function(
+                Token::Right => Expression::Right(Rc::new(self.parse_built_in_unary_function_call(
                     tokens,
                     line_num,
                     indentation,
                     pure,
                 )?)),
-                Token::Empty => Expression::Empty(Rc::new(self.parse_built_in_unary_function(
+                Token::Empty => Expression::Empty(Rc::new(self.parse_built_in_unary_function_call(
                     tokens,
                     line_num,
                     indentation,
                     pure,
                 )?)),
                 Token::Print => Expression::PrintCall(Rc::new(
-                    self.parse_built_in_unary_function(tokens, line_num, indentation, pure)?,
+                    self.parse_built_in_unary_function_call(tokens, line_num, indentation, pure)?,
                 )),
                 Token::Read => Expression::ReadCall,
                 Token::Impure => {
@@ -514,214 +516,217 @@ impl Parser {
         }
     }
 
-    fn parse_line(
+    // parses "name(arg)" function call
+    fn parse_built_in_unary_function_call(
         &mut self,
-        line: &Line,
+        tokens: &mut Peekable<Iter<Token>>,
+        line_num: u32,
         indentation: u16,
         pure: bool,
-    ) -> Result<FunctionLine, ParserError> {
-        let tokens = &line.tokens;
-
-        if tokens.len() == 0 {
-            Ok(FunctionLine::Empty)
-        } else if tokens.len() == 2 && matches!(tokens[0], Token::Import) {
-            match &tokens[1] {
-                Token::Str(string) => Ok(FunctionLine::Import(string.clone())),
-                _ => Err(self.produce_error(ParserErrorKind::FilenameStringExpected, line.number)),
-            }
-        } else if tokens.len() > 2 && matches!(tokens[1], Token::Assignment) {
-            match &tokens[0] {
-                Token::Name(string) => {
-                    let mut iter = tokens[2..].iter().peekable();
-                    let expression =
-                        self.parse_expression(&mut iter, line.number, indentation, pure)?;
-                    Ok(FunctionLine::Assignment(string.clone(), expression))
-                }
-                _ => Err(self.produce_error(
-                    ParserErrorKind::AssignmentError {
-                        msg: String::from(
-                            "The token on the left side of the assignment is not a name!",
-                        ),
-                    },
-                    line.number,
-                )),
-            }
-        } else {
-            let mut iter = tokens.iter().peekable();
-            self.parse_expression(&mut iter, line.number, indentation, pure)
-                .map(|exp| FunctionLine::Expression(exp))
-        }
+    ) -> Result<Expression, ParserError> {
+        assert_next_token!(
+            tokens,
+            Token::LeftBracket,
+            self.produce_error(ParserErrorKind::LeftBracketExpected, line_num)
+        );
+        let expr = self.parse_expression(tokens, line_num, indentation, pure)?;
+        assert_next_token!(
+            tokens,
+            Token::RightBracket,
+            self.produce_error(ParserErrorKind::UnbalancedBracketsError, line_num)
+        );
+        Ok(expr)
     }
 
-    fn handle_scope_line(
+    // parses "name(arg, arg)" function call
+    fn parse_built_in_binary_function_call(
         &mut self,
-        line: &Line,
-        expressions: &mut Vec<Expression>,
-        assignments: &mut Vec<(String, Rc<Expression>)>,
+        tokens: &mut Peekable<Iter<Token>>,
+        line_num: u32,
         indentation: u16,
         pure: bool,
-    ) -> Result<(), ParserError> {
-        let parsed = self.parse_line(line, indentation, pure)?;
-        match parsed {
-            FunctionLine::Expression(exp) => {
-                if pure && expressions.len() > 0 {
-                    return Err(self.produce_error(
-                        ParserErrorKind::ReturnExpressionError {
-                            msg: String::from("A pure scope can only have 1 expression!"),
-                        },
-                        line.number,
-                    ));
-                } else {
-                    expressions.push(exp);
-                    Ok(())
-                }
-            }
-            FunctionLine::Assignment(string, exp) => {
-                if pure && expressions.len() == 1 {
-                    return Err(self.produce_error(
-                        ParserErrorKind::ReturnExpressionError {
-                            msg: String::from(
-                                "Cannot have assignments after expression in a single pure scope!",
-                            ),
-                        },
-                        line.number,
-                    ));
-                } else {
-                    assignments.push((string, Rc::new(exp)));
-                    Ok(())
-                }
-            }
-            FunctionLine::Import(import_filename) => {
-                let import_path = match PathBuf::from(self.filename.clone()).parent() {
-                    Some(parent) => parent.join(import_filename),
-                    None => PathBuf::from(import_filename),
-                };
-                let import_path_str = import_path.to_string_lossy().to_string();
-                let file = File::open(import_path.clone()).map_err(|err| {
-                    self.produce_error(
-                        ParserErrorKind::CannotImportFile {
-                            import_filename: import_path_str.clone(),
-                            error_message: err.to_string(),
-                        },
-                        line.number,
-                    )
-                })?;
+    ) -> Result<(Expression, Expression), ParserError> {
+        assert_next_token!(
+            tokens,
+            Token::LeftBracket,
+            self.produce_error(ParserErrorKind::LeftBracketExpected, line_num)
+        );
+        let expr_1 = self.parse_expression(tokens, line_num, indentation, pure)?;
+        assert_next_token!(
+            tokens,
+            Token::Comma,
+            self.produce_error(ParserErrorKind::CommaExpected, line_num)
+        );
+        let expr_2 = self.parse_expression(tokens, line_num, indentation, pure)?;
+        assert_next_token!(
+            tokens,
+            Token::RightBracket,
+            self.produce_error(ParserErrorKind::UnbalancedBracketsError, line_num)
+        );
+        Ok((expr_1, expr_2))
+    }
 
-                let lines = lines(file);
-                let scope = Parser::new(lines, &import_path_str).parse_outside_scope()?;
+    // parses arbitrary list of args, ending with right bracket
+    fn parse_args_list(
+        &mut self,
+        tokens: &mut Peekable<Iter<Token>>,
+        line_num: u32,
+        indentation: u16,
+        pure: bool,
+    ) -> Result<Vec<Rc<Expression>>, ParserError> {
+        let mut vec = vec![];
 
-                match scope {
-                    Scope::Impure {
-                        assignments: mut import_assignments,
-                        statements,
-                    } => {
-                        assignments.append(&mut import_assignments);
-                        if !statements.is_empty() {
-                            return Err(self.produce_error(
-                                ParserErrorKind::UnexpectedExpressionInTopLevelOfImport,
-                                line.number,
-                            ));
+        loop {
+            let token = tokens
+                .peek()
+                .ok_or(self.produce_error(ParserErrorKind::UnexpectedEndOfLine, line_num))?;
+
+            match token {
+                Token::RightBracket => {
+                    tokens.next().unwrap();
+                    return Ok(vec);
+                }
+                _ => {
+                    let expr = self.parse_expression(tokens, line_num, indentation, pure)?;
+                    vec.push(Rc::new(expr));
+                    match tokens.peek() {
+                        Some(Token::Comma) => {
+                            tokens.next().unwrap();
                         }
-                    }
-                    Scope::Pure { .. } => panic!("Unexpected Pure scope in import"),
-                };
-                Ok(())
-            }
-            FunctionLine::Empty => Ok(()),
+                        Some(Token::RightBracket) => (),
+                        _ => {
+                            return Err(self.produce_error(ParserErrorKind::CommaExpected, line_num))
+                        }
+                    };
+                }
+            };
         }
     }
+}
 
-    fn parse_scope(&mut self, outside_indentation: i32, pure: bool) -> Result<Scope, ParserError> {
-        let mut assignments = Vec::<(String, Rc<Expression>)>::new();
-        let mut expressions: Vec<Expression> = vec![];
-        let mut last_line_number;
+fn new_scope_with_single_expr(expr: Expression, pure: bool) -> Box<Scope> {
+    if pure {
+        Box::new(Scope::Pure {
+            assignments: vec![],
+            expression: Rc::new(expr),
+        })
+    } else {
+        Box::new(Scope::Impure {
+            assignments: vec![],
+            statements: vec![Rc::new(expr)],
+        })
+    }
+}
 
-        let line = self
-            .next_lines
-            .next()
-            .ok_or(self.produce_error(ParserErrorKind::UnexpectedEOF, 0))?
-            .map_err(|_| self.produce_error(ParserErrorKind::LexerError, 0))?;
-
-        last_line_number = line.number;
-
-        let scope_indentation = line.indentation;
-        if scope_indentation as i32 <= outside_indentation {
-            return Err(self.produce_error(
-                ParserErrorKind::IndentationError {
-                    msg: String::from("Scope has to be indented"),
-                    expected: outside_indentation + 1,
-                    actual: outside_indentation,
-                },
-                line.number,
-            ));
+fn parse_binary_operation(
+    op: &Op,
+    expr_1: Expression,
+    expr_2: Expression,
+    line_num: u32,
+    filename: &str,
+) -> Result<Expression, ParserError> {
+    Ok(match op {
+        Op::And => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::And), expr_1, expr_2),
+        Op::Or => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::Or), expr_1, expr_2),
+        Op::Xor => new_binary_operation!(BinaryOp::Boolean(BoolBinOp::Xor), expr_1, expr_2),
+        Op::Plus => new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Plus), expr_1, expr_2),
+        Op::Minus => new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Minus), expr_1, expr_2),
+        Op::Division => {
+            new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Division), expr_1, expr_2)
         }
-
-        self.handle_scope_line(
-            &line,
-            &mut expressions,
-            &mut assignments,
-            scope_indentation,
-            pure,
-        )?;
-
-        while let Some(line_result) = self.next_lines.peek() {
-            let next_line = line_result.as_ref().map_err(|_| ParserError {
-                kind: ParserErrorKind::PeekError,
-                filename: self.filename.clone(),
-                line: last_line_number,
-            })?;
-            last_line_number = next_line.number;
-
-            if next_line.indentation < scope_indentation
-                && next_line.indentation as i32 <= outside_indentation
-            {
-                // end of scope
-                break;
-            } else if outside_indentation > 0 && next_line.indentation < scope_indentation {
-                // scope has not ended yet but has different indentation
-                return Err(self.produce_error(
-                    ParserErrorKind::IndentationError {
-                        msg: String::from("The indentation of a scope should be the same"),
-                        expected: scope_indentation as i32,
-                        actual: line.indentation as i32,
-                    },
-                    last_line_number,
-                ));
-            } else {
-                // scope has not ended and has valid indentation
-                let line = self.next_lines.next().unwrap().map_err(|_| ParserError {
-                    kind: ParserErrorKind::LexerError,
-                    filename: self.filename.clone(),
-                    line: last_line_number,
-                })?;
-
-                self.handle_scope_line(
-                    &line,
-                    &mut expressions,
-                    &mut assignments,
-                    scope_indentation,
-                    pure,
-                )?;
-            }
+        Op::IntDivision => {
+            new_binary_operation!(
+                BinaryOp::Arithmetic(ArithBinOp::IntDivision),
+                expr_1,
+                expr_2
+            )
         }
-
-        if pure {
-            if expressions.len() == 0 {
-                Err(self.produce_error(ParserErrorKind::ExpressionExpected, last_line_number))
-            } else {
-                if expressions.len() != 1 {
-                    panic!("Expressions must be no more than one in pure scope");
-                }
-                Ok(Scope::Pure {
-                    assignments,
-                    expression: Rc::new(expressions.pop().unwrap()),
-                })
-            }
-        } else {
-            Ok(Scope::Impure {
-                assignments,
-                statements: expressions.into_iter().map(Rc::new).collect(),
+        Op::Multiplication => new_binary_operation!(
+            BinaryOp::Arithmetic(ArithBinOp::Multiplication),
+            expr_1,
+            expr_2
+        ),
+        Op::Exponentiation => new_binary_operation!(
+            BinaryOp::Arithmetic(ArithBinOp::Exponentiation),
+            expr_1,
+            expr_2
+        ),
+        Op::Modulo => {
+            new_binary_operation!(BinaryOp::Arithmetic(ArithBinOp::Modulo), expr_1, expr_2)
+        }
+        Op::Eq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Eq), expr_1, expr_2),
+        Op::NEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::NEq), expr_1, expr_2),
+        Op::Lt => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Lt), expr_1, expr_2),
+        Op::Gt => new_binary_operation!(BinaryOp::Compare(CmpBinOp::Gt), expr_1, expr_2),
+        Op::LEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::LEq), expr_1, expr_2),
+        Op::GEq => new_binary_operation!(BinaryOp::Compare(CmpBinOp::GEq), expr_1, expr_2),
+        Op::Negation => {
+            return Err(ParserError {
+                kind: ParserErrorKind::OpError,
+                line: line_num,
+                filename: filename.to_string(),
             })
         }
+    })
+}
+
+pub fn parse_string(string: &str) -> Value {
+    string.chars().rev().fold(Value::Nil, |acc, x| {
+        Value::Tuple(Box::new(Value::Char(x)), Box::new(acc))
+    })
+}
+
+fn parse_number(string: &str, line_num: u32, filename: &str) -> Result<Expression, ParserError> {
+    if let Some(integer) = string.parse::<i32>().ok() {
+        Ok(Expression::Value(Value::Number(Number::Integer(integer))))
+    } else if let Some(float) = string.parse::<f64>().ok() {
+        Ok(Expression::Value(Value::Number(Number::Float(float))))
+    } else {
+        Err(ParserError {
+            kind: ParserErrorKind::NumberParseError,
+            filename: filename.to_string(),
+            line: line_num,
+        })
+    }
+}
+
+fn parse_name_list(
+    tokens: &mut Peekable<Iter<Token>>,
+    line_num: u32,
+    filename: &str,
+) -> Result<Vec<String>, ParserError> {
+    let mut vec = vec![];
+    loop {
+        let token = tokens.next().ok_or(ParserError {
+            kind: ParserErrorKind::UnexpectedEndOfLine,
+            filename: filename.to_string(),
+            line: line_num,
+        })?;
+        match token {
+            Token::RightBoxBracket => return Ok(vec),
+            Token::Name(string) => {
+                vec.push(string.clone());
+                match tokens.peek() {
+                    Some(Token::Comma) => {
+                        tokens.next().unwrap();
+                    }
+                    Some(Token::RightBoxBracket) => (),
+                    _ => {
+                        return Err(ParserError {
+                            kind: ParserErrorKind::CommaExpected,
+                            filename: filename.to_string(),
+                            line: line_num,
+                        })
+                    }
+                };
+            }
+            _ => {
+                return Err(ParserError {
+                    kind: ParserErrorKind::NameExpected,
+                    filename: filename.to_string(),
+                    line: line_num,
+                })
+            }
+        };
     }
 }
