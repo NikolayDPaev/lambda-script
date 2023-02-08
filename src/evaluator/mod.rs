@@ -28,7 +28,7 @@ macro_rules! make_thunk {
             // If the expression is a function then in its body it might have names
             // referring to expressions in the context at declaration.
             // That is why we must preserve the context.
-            Expression::Value(Value::Function{..}) => Rc::new(Expression::Thunk(
+            Expression::Value(Value::Function { .. }) => Rc::new(Expression::Thunk(
                 $expr.clone(),
                 $assignments.clone(),
                 $memoize,

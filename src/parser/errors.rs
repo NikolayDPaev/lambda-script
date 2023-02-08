@@ -62,8 +62,14 @@ impl ParserError {
             ParserErrorKind::UnexpectedExpressionInTopLevelOfImport => {
                 format!("imports must not have expressions")
             }
-            ParserErrorKind::CannotImportFile { import_filename, error_message } => {
-                format!("invalid import of file {:?}, error: {}", import_filename, error_message)
+            ParserErrorKind::CannotImportFile {
+                import_filename,
+                error_message,
+            } => {
+                format!(
+                    "invalid import of file {:?}, error: {}",
+                    import_filename, error_message
+                )
             }
             ParserErrorKind::ExpressionExpected => {
                 format!("expected expression")
