@@ -12,7 +12,7 @@ use evaluator::*;
 use lexer::lines;
 use parser::{
     enums::{Number, Value},
-    parse,
+    Parser,
 };
 
 mod evaluator;
@@ -42,7 +42,7 @@ where
 
     pub fn run<S: Read + 'static>(&mut self, script: S, filename: &str) -> i32 {
         let lines = lines(script);
-        let scope = parse(lines, filename);
+        let scope = Parser::new(lines, filename).parse_outside_scope();
         match scope {
             Ok(s) => {
                 //println!("{:?}", s);
@@ -93,7 +93,11 @@ fn main() {
     let file = match File::open(filename.clone()) {
         io::Result::Ok(file) => file,
         io::Result::Err(error) => {
-            println!("Cannot open file: {:?}. Error: {}", filename, error.to_string());
+            println!(
+                "Cannot open file: {:?}. Error: {}",
+                filename,
+                error.to_string()
+            );
             std::process::exit(1)
         }
     };
