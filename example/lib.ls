@@ -1,5 +1,4 @@
-# List functions
-
+-- List functions
 length = [list] -> if empty(list) then 0 else 1 + length(right(list))
 
 map = [f, list] ->
@@ -61,8 +60,7 @@ cat = [xs, ys] ->
     else cons(left(xs), cat(right(xs), ys))
 
 
-# Other functions
-
+-- Other functions
 parseNumber = [list] ->
     parse = [list, n] ->
         if empty(list) then
