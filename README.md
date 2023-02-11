@@ -14,12 +14,14 @@ take = [n, list] ->
 ```
 
 ```
-fibList = cons(0, cons(1, zipMap([x, y] -> x + y, zip(fibList, right(fibList)))))
-print(take(5, fibList))
+genNaturalsFrom = [n] ->
+    cons(n, genNaturalsFrom(n + 1))
+
+print(take(5, genNaturalsFrom(3)))
 ```
-outputs:
+prints to stdout
 ```
-(0, (1, (1, (2, (3, nil)))))
+(3, (4, (5, (6, (7, nil)))))
 ```
 
 # Very short description

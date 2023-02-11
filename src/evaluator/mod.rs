@@ -23,7 +23,7 @@ macro_rules! add_outside_assignments {
 }
 
 macro_rules! make_thunk {
-    ($expr:expr, $assignments: expr, $memoize: expr) => {
+    ($expr:expr, $assignments: expr, $pure: expr) => {
         match $expr.as_ref() {
             // If the expression is a function then in its body it might have names
             // referring to expressions in the context at declaration.
@@ -31,14 +31,14 @@ macro_rules! make_thunk {
             Expression::Value(Value::Function { .. }) => Rc::new(Expression::Thunk(
                 $expr.clone(),
                 $assignments.clone(),
-                $memoize,
+                $pure,
             )),
             // if the expression is thunk or value, it does not need its context
             Expression::Thunk(..) | Expression::Value(..) => $expr.clone(),
             _ => Rc::new(Expression::Thunk(
                 $expr.clone(),
                 $assignments.clone(),
-                $memoize,
+                $pure,
             )),
         }
     };
@@ -104,12 +104,12 @@ where
         &mut self,
         expr: Rc<Expression>,
         assignments: HashTrieMap<String, Rc<Expression>>,
-        memoize: bool,
+        pure: bool,
     ) -> Result<Value, EvaluatorError> {
         let mut expression = expr.clone();
         let mut thunks_for_memo = vec![];
         loop {
-            if memoize && matches!(expression.as_ref(), Expression::Thunk(..)) {
+            if pure && matches!(expression.as_ref(), Expression::Thunk(..)) {
                 thunks_for_memo.push(expression.clone());
             }
             if let Expression::Value(value) = expression.as_ref() {
@@ -119,7 +119,7 @@ where
                 }
                 return Ok(value.clone());
             }
-            expression = self.eval_expression(expression, assignments.clone(), memoize)?
+            expression = self.eval_expression(expression, assignments.clone(), pure)?
         }
     }
 
@@ -153,18 +153,17 @@ where
                 assignments,
                 statements,
             } => {
-                // add the outside assignments and the assignments
+                // add the outside assignments and eval the assignments
                 // eval the read calls
-                let assignments_map = assignments
-                    .into_iter()
-                    .map(|(name, expr)| match expr.as_ref() {
+                let mut assignments_map = outside_assignments.clone();
+                for (name, expr) in assignments {
+                    let evaluated_expr = match expr.as_ref() {
                         // if assignment expression is read call, force its evaluation
-                        Expression::ReadCall => (name, self.force_read()),
-                        _ => (name, expr.clone()),
-                    })
-                    .fold(outside_assignments.clone(), |acc, (key, value)| {
-                        acc.insert(key.clone(), value.clone())
-                    });
+                        Expression::ReadCall => self.force_read(),
+                        _ => Rc::new(Expression::Value(self.force_eval(expr.clone(), assignments_map.clone(), false)?)),
+                    };
+                    assignments_map = assignments_map.insert(name.to_string(), evaluated_expr);
+                }
 
                 let mut last_expr = Rc::new(Expression::Value(Value::Nil));
                 for expr in statements {
@@ -183,14 +182,14 @@ where
         &mut self,
         expr: Rc<Expression>,
         assignments: HashTrieMap<String, Rc<Expression>>,
-        memoize: bool,
+        pure: bool,
     ) -> Result<Rc<Expression>, EvaluatorError> {
         if self.debug {
             writeln!(self.output, "Evaluating: {:?}\n", expr).unwrap();
         }
         let result = match expr.as_ref() {
             Expression::Value(_) => expr.clone(),
-            Expression::Thunk(inside_expr, env, memoize) => {
+            Expression::Thunk(inside_expr, env, pure) => {
                 if let Some(expression) = self.thunk_memoization_map.get(&ByAddress(expr.clone())) {
                     if self.debug {
                         writeln!(
@@ -202,19 +201,19 @@ where
                     }
                     return Ok(expression.clone());
                 }
-                self.eval_expression(inside_expr.clone(), env.clone(), *memoize)?
+                self.eval_expression(inside_expr.clone(), env.clone(), *pure)?
             }
             Expression::Name(name) => {
                 if let Some(expr) = assignments.get(name) {
-                    make_thunk!(expr.clone(), assignments, memoize)
+                    make_thunk!(expr.clone(), assignments, pure)
                 } else {
                     return Err(EvaluatorError::UnknownName(expr));
                 }
             }
             Expression::FunctionCall { name, args } => {
-                match self.force_eval(name.clone(), assignments.clone(), memoize)? {
+                match self.force_eval(name.clone(), assignments.clone(), pure)? {
                     Value::Function { params, scope } => {
-                        if memoize && matches!(scope.as_ref(), Scope::Impure { .. }) {
+                        if pure && matches!(scope.as_ref(), Scope::Impure { .. }) {
                             return Err(EvaluatorError::SideEffectInPureScope(name.clone()));
                         }
                         if args.len() != params.len() {
@@ -225,6 +224,7 @@ where
                         for arg in args.iter() {
                             resolved_args.push(try_resolve_name(arg.clone(), assignments.clone())?);
                         }
+                        
                         // group params and args and add to environment
                         let assignments = params.into_iter().zip(resolved_args.into_iter()).fold(
                             assignments.clone(),
@@ -251,10 +251,10 @@ where
                 return Err(EvaluatorError::UnexpectedRead());
             }
             Expression::PrintCall(inside_expr) => {
-                if memoize {
+                if pure {
                     return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
                 }
-                let value = self.force_eval(inside_expr.clone(), assignments, memoize)?;
+                let value = self.force_eval(inside_expr.clone(), assignments, pure)?;
                 print(&value, &mut self.output);
                 writeln!(self.output).unwrap();
                 self.output.flush().unwrap();
@@ -262,32 +262,25 @@ where
                 Rc::new(Expression::Value(Value::Nil))
             }
             Expression::Cons(left, right) => match (left.as_ref(), right.as_ref()) {
-                (Expression::Value(left), Expression::Value(right)) => Rc::new(Expression::Value(
-                    Value::Tuple(Box::new(left.clone()), Box::new(right.clone())),
-                )),
-                (Expression::Value(_), Expression::Thunk(..)) => Rc::new(Expression::Cons(
-                    left.clone(),
-                    self.eval_expression(right.clone(), assignments, memoize)?,
-                )),
-                (Expression::Thunk(..), Expression::Value(_)) => Rc::new(Expression::Cons(
-                    self.eval_expression(left.clone(), assignments, memoize)?,
-                    right.clone(),
-                )),
-                (Expression::Thunk(..), Expression::Thunk(..)) => Rc::new(Expression::Cons(
-                    self.eval_expression(left.clone(), assignments.clone(), memoize)?,
-                    self.eval_expression(right.clone(), assignments, memoize)?,
+                (Expression::Value(..), Expression::Value(..)) |
+                (Expression::Value(..), Expression::Thunk(..)) |
+                (Expression::Thunk(..), Expression::Value(..)) |
+                (Expression::Thunk(..), Expression::Thunk(..)) => Rc::new(Expression::Value(
+                    Value::Tuple(
+                        Box::new(self.force_eval(left.clone(), assignments.clone(), pure)?),
+                        Box::new(self.force_eval(right.clone(), assignments, pure)?))
                 )),
                 (Expression::Value(_), _) => Rc::new(Expression::Cons(
                     left.clone(),
-                    make_thunk!(right.clone(), assignments, memoize),
+                    make_thunk!(right.clone(), assignments, pure),
                 )),
                 (_, Expression::Value(_)) => Rc::new(Expression::Cons(
-                    make_thunk!(left.clone(), assignments, memoize),
+                    make_thunk!(left.clone(), assignments, pure),
                     right.clone(),
                 )),
                 (_, _) => Rc::new(Expression::Cons(
-                    make_thunk!(left.clone(), assignments.clone(), memoize),
-                    make_thunk!(right.clone(), assignments, memoize),
+                    make_thunk!(left.clone(), assignments.clone(), pure),
+                    make_thunk!(right.clone(), assignments, pure),
                 )),
             },
             Expression::Left(inside_expr) => match inside_expr.as_ref() {
@@ -304,7 +297,7 @@ where
                 _ => Rc::new(Expression::Left(self.eval_expression(
                     inside_expr.clone(),
                     assignments,
-                    memoize,
+                    pure,
                 )?)),
             },
             Expression::Right(inside_expr) => match inside_expr.as_ref() {
@@ -321,7 +314,7 @@ where
                 _ => Rc::new(Expression::Right(self.eval_expression(
                     inside_expr.clone(),
                     assignments,
-                    memoize,
+                    pure,
                 )?)),
             },
             Expression::Empty(inside_expr) => match inside_expr.as_ref() {
@@ -339,27 +332,27 @@ where
                 _ => Rc::new(Expression::Empty(self.eval_expression(
                     inside_expr.clone(),
                     assignments,
-                    memoize,
+                    pure,
                 )?)),
             },
             Expression::UnaryOperation(op, inside_expr) => {
                 Rc::new(Expression::Value(eval_unary_op(
                     *op,
-                    &self.force_eval(inside_expr.clone(), assignments.clone(), memoize)?,
+                    &self.force_eval(inside_expr.clone(), assignments.clone(), pure)?,
                 )?))
             }
             Expression::BinaryOperation(op, left, right) => {
                 Rc::new(Expression::Value(eval_bin_op(
                     *op,
-                    &self.force_eval(left.clone(), assignments.clone(), memoize)?,
-                    &self.force_eval(right.clone(), assignments.clone(), memoize)?,
+                    &self.force_eval(left.clone(), assignments.clone(), pure)?,
+                    &self.force_eval(right.clone(), assignments.clone(), pure)?,
                 )?))
             }
             Expression::If {
                 condition,
                 then_scope,
                 else_scope,
-            } => match self.force_eval(condition.clone(), assignments.clone(), memoize)? {
+            } => match self.force_eval(condition.clone(), assignments.clone(), pure)? {
                 Value::Boolean(true) => self.eval_scope(&**then_scope, assignments)?,
                 Value::Boolean(false) => self.eval_scope(&**else_scope, assignments)?,
                 _ => {
