@@ -14,4 +14,9 @@ allStrings = impure [n] ->
         second = map([xs] -> cons(1, xs), rest)
         cat(first, second)
 
-print(allStrings(5))
+input = read
+num = parseNumber(input)
+
+print(allStrings(num))
+
+import "guess.ls"

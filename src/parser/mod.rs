@@ -29,8 +29,14 @@ macro_rules! assert_next_token {
     };
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum FunctionLine {
+    Expression(Rc<Expression>),
+    Assignment(String, Rc<Expression>),
+}
+
 #[derive(Debug)]
-enum FunctionLine {
+enum ParsedLine {
     Expression(Expression),
     Assignment(String, Expression),
     Import(String),
@@ -63,8 +69,7 @@ impl Parser {
     }
 
     fn parse_scope(&mut self, outside_indentation: i32, pure: bool) -> Result<Scope, ParserError> {
-        let mut assignments = Vec::<(String, Rc<Expression>)>::new();
-        let mut expressions: Vec<Expression> = vec![];
+        let mut lines: Vec<FunctionLine> = vec![];
         let mut last_line_number;
 
         let line = self
@@ -89,8 +94,7 @@ impl Parser {
 
         self.handle_scope_line(
             &line,
-            &mut expressions,
-            &mut assignments,
+            &mut lines,
             scope_indentation,
             pure,
         )?;
@@ -128,8 +132,7 @@ impl Parser {
 
                 self.handle_scope_line(
                     &line,
-                    &mut expressions,
-                    &mut assignments,
+                    &mut lines,
                     scope_indentation,
                     pure,
                 )?;
@@ -137,6 +140,38 @@ impl Parser {
         }
 
         if pure {
+            let mut expressions = vec![];
+            let mut assignments = vec![];
+
+            for function_line in lines {
+                match function_line {
+                    FunctionLine::Assignment(name, expr) =>{
+                        if expressions.len() == 1 {
+                            return Err(self.produce_error(
+                                ParserErrorKind::ReturnExpressionError {
+                                    msg: String::from(
+                                        "Cannot have assignments after expression in a single pure scope!",
+                                    ),
+                                },
+                                line.number,
+                            ));
+                        }
+                        assignments.push((name, expr));
+                    } 
+                    FunctionLine::Expression(expr) => {
+                        if expressions.len() > 0 {
+                            return Err(self.produce_error(
+                                ParserErrorKind::ReturnExpressionError {
+                                    msg: String::from("A pure scope can only have 1 expression!"),
+                                },
+                                line.number,
+                            ));
+                        }
+                        expressions.push(expr);
+                    }
+                }
+            }
+
             if expressions.len() == 0 {
                 Err(self.produce_error(ParserErrorKind::ExpressionExpected, last_line_number))
             } else {
@@ -145,57 +180,33 @@ impl Parser {
                 }
                 Ok(Scope::Pure {
                     assignments,
-                    expression: Rc::new(expressions.pop().unwrap()),
+                    expression: expressions.pop().unwrap(),
                 })
             }
         } else {
             Ok(Scope::Impure {
-                assignments,
-                statements: expressions.into_iter().map(Rc::new).collect(),
+                lines
             })
         }
     }
 
-    // mutates the expressions and assignments vectors of the scope
+    // mutates the lines vectors of the scope
     fn handle_scope_line(
         &mut self,
         line: &Line,
-        expressions: &mut Vec<Expression>,
-        assignments: &mut Vec<(String, Rc<Expression>)>,
+        lines: &mut Vec<FunctionLine>,
         indentation: u16,
-        pure: bool,
+        pure: bool
     ) -> Result<(), ParserError> {
         let parsed = self.parse_line(line, indentation, pure)?;
         match parsed {
-            FunctionLine::Expression(exp) => {
-                if pure && expressions.len() > 0 {
-                    return Err(self.produce_error(
-                        ParserErrorKind::ReturnExpressionError {
-                            msg: String::from("A pure scope can only have 1 expression!"),
-                        },
-                        line.number,
-                    ));
-                } else {
-                    expressions.push(exp);
-                    Ok(())
-                }
+            ParsedLine::Expression(exp) => {
+                lines.push(FunctionLine::Expression(Rc::new(exp)));
             }
-            FunctionLine::Assignment(string, exp) => {
-                if pure && expressions.len() == 1 {
-                    return Err(self.produce_error(
-                        ParserErrorKind::ReturnExpressionError {
-                            msg: String::from(
-                                "Cannot have assignments after expression in a single pure scope!",
-                            ),
-                        },
-                        line.number,
-                    ));
-                } else {
-                    assignments.push((string, Rc::new(exp)));
-                    Ok(())
-                }
+            ParsedLine::Assignment(string, exp) => {
+                lines.push(FunctionLine::Assignment(string, Rc::new(exp)));
             }
-            FunctionLine::Import(import_filename) => {
+            ParsedLine::Import(import_filename) => {
                 let import_path = match PathBuf::from(self.filename.clone()).parent() {
                     Some(parent) => parent.join(import_filename),
                     None => PathBuf::from(import_filename),
@@ -211,44 +222,34 @@ impl Parser {
                     )
                 })?;
 
-                let lines = lines(file);
-                let scope = Parser::new(lines, &import_path_str).parse_outside_scope()?;
+                let scope = Parser::new(crate::lexer::lines(file), &import_path_str).parse_outside_scope()?;
 
                 match scope {
                     Scope::Impure {
-                        assignments: mut import_assignments,
-                        statements,
-                    } => {
-                        assignments.append(&mut import_assignments);
-                        if !statements.is_empty() {
-                            return Err(self.produce_error(
-                                ParserErrorKind::UnexpectedExpressionInTopLevelOfImport,
-                                line.number,
-                            ));
-                        }
-                    }
+                        lines: mut import_lines,
+                    } => lines.append(&mut import_lines),
                     Scope::Pure { .. } => panic!("Unexpected Pure scope in import"),
                 };
-                Ok(())
             }
-            FunctionLine::Empty => Ok(()),
-        }
+            ParsedLine::Empty => (),
+        };
+        Ok(())
     }
 
-    // parses the line and returns expression, assignment, import of empty line
+    // parses the line and returns expression, assignment, import or empty line
     fn parse_line(
         &mut self,
         line: &Line,
         indentation: u16,
         pure: bool,
-    ) -> Result<FunctionLine, ParserError> {
+    ) -> Result<ParsedLine, ParserError> {
         let tokens = &line.tokens;
 
         if tokens.len() == 0 {
-            Ok(FunctionLine::Empty)
+            Ok(ParsedLine::Empty)
         } else if tokens.len() == 2 && matches!(tokens[0], Token::Import) {
             match &tokens[1] {
-                Token::Str(string) => Ok(FunctionLine::Import(string.clone())),
+                Token::Str(string) => Ok(ParsedLine::Import(string.clone())),
                 _ => Err(self.produce_error(ParserErrorKind::FilenameStringExpected, line.number)),
             }
         } else if tokens.len() > 2 && matches!(tokens[1], Token::Assignment) {
@@ -257,7 +258,7 @@ impl Parser {
                     let mut iter = tokens[2..].iter().peekable();
                     let expression =
                         self.parse_expression(&mut iter, line.number, indentation, pure)?;
-                    Ok(FunctionLine::Assignment(string.clone(), expression))
+                    Ok(ParsedLine::Assignment(string.clone(), expression))
                 }
                 _ => Err(self.produce_error(
                     ParserErrorKind::AssignmentError {
@@ -271,7 +272,7 @@ impl Parser {
         } else {
             let mut iter = tokens.iter().peekable();
             self.parse_expression(&mut iter, line.number, indentation, pure)
-                .map(|exp| FunctionLine::Expression(exp))
+                .map(|exp| ParsedLine::Expression(exp))
         }
     }
 
@@ -612,8 +613,7 @@ fn new_scope_with_single_expr(expr: Expression, pure: bool) -> Box<Scope> {
         })
     } else {
         Box::new(Scope::Impure {
-            assignments: vec![],
-            statements: vec![Rc::new(expr)],
+            lines: vec![FunctionLine::Expression(Rc::new(expr))]
         })
     }
 }

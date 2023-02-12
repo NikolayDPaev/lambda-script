@@ -6,6 +6,9 @@ use std::{
 
 use rpds::HashTrieMap;
 
+use super::FunctionLine;
+pub type ImpureLine = FunctionLine;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Scope {
     Pure {
@@ -13,8 +16,7 @@ pub enum Scope {
         expression: Rc<Expression>,
     },
     Impure {
-        assignments: Vec<(String, Rc<Expression>)>,
-        statements: Vec<Rc<Expression>>,
+        lines: Vec<ImpureLine>,
     },
 }
 

@@ -150,30 +150,34 @@ where
                 Ok(make_thunk!(expression.clone(), assignments_map, true))
             }
             Scope::Impure {
-                assignments,
-                statements,
+                lines,
             } => {
-                // add the outside assignments and eval the assignments
+                // add the outside assignments
+                // force eval the assignments and the expressions
                 // eval the read calls
                 let mut assignments_map = outside_assignments.clone();
-                for (name, expr) in assignments {
-                    let evaluated_expr = match expr.as_ref() {
-                        // if assignment expression is read call, force its evaluation
-                        Expression::ReadCall => self.force_read(),
-                        _ => Rc::new(Expression::Value(self.force_eval(expr.clone(), assignments_map.clone(), false)?)),
-                    };
-                    assignments_map = assignments_map.insert(name.to_string(), evaluated_expr);
-                }
+                let mut return_expr = Rc::new(Expression::Value(Value::Nil));
 
-                let mut last_expr = Rc::new(Expression::Value(Value::Nil));
-                for expr in statements {
-                    last_expr = Rc::new(Expression::Value(self.force_eval(
-                        expr.clone(),
-                        assignments_map.clone(),
-                        false,
-                    )?));
+                for line in lines {
+                    match line {
+                        ImpureLine::Assignment(name, expr) => {
+                            let evaluated_expr = match expr.as_ref() {
+                                // if assignment expression is read call, force its evaluation
+                                Expression::ReadCall => self.force_read(),
+                                _ => Rc::new(Expression::Value(self.force_eval(expr.clone(), assignments_map.clone(), false)?)),
+                            };
+                            assignments_map = assignments_map.insert(name.to_string(), evaluated_expr);
+                        },
+                        ImpureLine::Expression(expr) => {
+                            return_expr = Rc::new(Expression::Value(self.force_eval(
+                                expr.clone(),
+                                assignments_map.clone(),
+                                false,
+                            )?));
+                        }
+                    }
                 }
-                Ok(make_thunk!(last_expr.clone(), assignments_map, false))
+                Ok(make_thunk!(return_expr.clone(), assignments_map, false))
             }
         }
     }

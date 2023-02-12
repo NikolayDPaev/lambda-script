@@ -9,7 +9,6 @@ pub enum ParserErrorKind {
         expected: i32,
         actual: i32,
     },
-    UnexpectedExpressionInTopLevelOfImport,
     CannotImportFile {
         import_filename: String,
         error_message: String,
@@ -59,9 +58,6 @@ impl ParserError {
                 "{:?}, expected indentation of {:?}, actual: {:?}",
                 msg, expected, actual
             ),
-            ParserErrorKind::UnexpectedExpressionInTopLevelOfImport => {
-                format!("imports must not have expressions")
-            }
             ParserErrorKind::CannotImportFile {
                 import_filename,
                 error_message,

@@ -56,7 +56,7 @@ Built-in functions:
  - ```empty(<expr>)``` checks if expression is cons or nil
 
 ## Imports
-**Imports** are also available. The imported files should consist only of assignments at the top level - like libraries.
+**Imports** are also available. If the import statement is in the scope of pure function, then The imported file outside scope should consist only of assignments. If the import statement is in impure scope, then there are no restrictions.
 Note that the interpreter does not check for circular imports
 ```
 import "example.ls"

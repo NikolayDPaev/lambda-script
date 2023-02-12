@@ -17,8 +17,7 @@ fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
     assert_eq!(
         result,
         Scope::Impure {
-            assignments: vec![],
-            statements: vec![Rc::new(expression)],
+            lines: vec![ImpureLine::Expression(Rc::new(expression))]
         }
     );
 }
@@ -423,17 +422,17 @@ fn test_assignments_name() {
     assert_eq!(
         result,
         Scope::Impure {
-            assignments: vec![
-                (
+            lines: vec![
+                ImpureLine::Assignment(
                     String::from("foo"),
                     Rc::new(Expression::Name(String::from("bar")))
                 ),
-                (
+                ImpureLine::Assignment(
                     String::from("bar"),
                     Rc::new(Expression::Name(String::from("foo")))
-                )
-            ],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+                ),
+                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+            ]
         }
     );
 }
@@ -481,20 +480,22 @@ fn test_function_multiple_args() {
     assert_eq!(
         result,
         Scope::Impure {
-            assignments: vec![(
-                String::from("foo"),
-                Rc::new(Expression::Value(Value::Function {
-                    params: vec![String::from("a"), String::from("b")],
-                    scope: Box::new(Scope::Pure {
-                        assignments: vec![(
-                            String::from("bar"),
-                            Rc::new(Expression::Value(Value::Number(Number::Integer(123))))
-                        )],
-                        expression: Rc::new(Expression::Name(String::from("foo")))
-                    })
-                }))
-            )],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+            lines: vec![
+                ImpureLine::Assignment(
+                    String::from("foo"),
+                    Rc::new(Expression::Value(Value::Function {
+                        params: vec![String::from("a"), String::from("b")],
+                        scope: Box::new(Scope::Pure {
+                            assignments: vec![(
+                                String::from("bar"),
+                                Rc::new(Expression::Value(Value::Number(Number::Integer(123))))
+                            )],
+                            expression: Rc::new(Expression::Name(String::from("foo")))
+                        })
+                    }))
+                ),
+                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+            ]
         }
     );
 }
@@ -530,17 +531,19 @@ fn test_function_no_args() {
     assert_eq!(
         result,
         Scope::Impure {
-            assignments: vec![(
-                String::from("foo"),
-                Rc::new(Expression::Value(Value::Function {
-                    params: vec![],
-                    scope: Box::new(Scope::Pure {
-                        assignments: vec![],
-                        expression: Rc::new(Expression::Name(String::from("foo")))
-                    })
-                }))
-            )],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+            lines: vec![
+                ImpureLine::Assignment(
+                    String::from("foo"),
+                    Rc::new(Expression::Value(Value::Function {
+                        params: vec![],
+                        scope: Box::new(Scope::Pure {
+                            assignments: vec![],
+                            expression: Rc::new(Expression::Name(String::from("foo")))
+                        })
+                    }))
+                ),
+                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+            ]
         }
     );
 }
@@ -580,20 +583,25 @@ fn test_function_impure_no_args() {
     assert_eq!(
         result,
         Scope::Impure {
-            assignments: vec![(
-                String::from("foo"),
-                Rc::new(Expression::Value(Value::Function {
-                    params: vec![],
-                    scope: Box::new(Scope::Impure {
-                        assignments: vec![],
-                        statements: vec![
-                            Rc::new(Expression::Name(String::from("foo"))),
-                            Rc::new(Expression::Name(String::from("bar")))
-                        ]
-                    })
-                }))
-            )],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+            lines: vec![
+                ImpureLine::Assignment(
+                    String::from("foo"),
+                    Rc::new(Expression::Value(Value::Function {
+                        params: vec![],
+                        scope: Box::new(Scope::Impure {
+                            lines: vec![
+                                ImpureLine::Expression(Rc::new(Expression::Name(String::from(
+                                    "foo"
+                                )))),
+                                ImpureLine::Expression(Rc::new(Expression::Name(String::from(
+                                    "bar"
+                                ))))
+                            ]
+                        })
+                    }))
+                ),
+                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+            ]
         }
     );
 }
@@ -648,26 +656,96 @@ fn test_if_else() {
     assert_eq!(
         result,
         Scope::Impure {
-            assignments: vec![(
-                String::from("foo"),
-                Rc::new(Expression::If {
-                    condition: Rc::new(Expression::Name(String::from("bar"))),
-                    then_scope: Box::new(Scope::Impure {
-                        assignments: vec![(
-                            String::from("foo"),
-                            Rc::new(Expression::Value(Value::Boolean(true)))
-                        )],
-                        statements: vec![Rc::new(Expression::Name(String::from("foo")))]
-                    }),
-                    else_scope: Box::new(Scope::Impure {
-                        assignments: vec![],
-                        statements: vec![Rc::new(Expression::Value(Value::Number(Number::Float(
-                            12.3
-                        ))))]
+            lines: vec![
+                ImpureLine::Assignment(
+                    String::from("foo"),
+                    Rc::new(Expression::If {
+                        condition: Rc::new(Expression::Name(String::from("bar"))),
+                        then_scope: Box::new(Scope::Impure {
+                            lines: vec![
+                                ImpureLine::Assignment(
+                                    String::from("foo"),
+                                    Rc::new(Expression::Value(Value::Boolean(true)))
+                                ),
+                                ImpureLine::Expression(Rc::new(Expression::Name(String::from(
+                                    "foo"
+                                ))))
+                            ]
+                        }),
+                        else_scope: Box::new(Scope::Impure {
+                            lines: vec![ImpureLine::Expression(Rc::new(Expression::Value(
+                                Value::Number(Number::Float(12.3))
+                            )))]
+                        })
                     })
-                })
-            )],
-            statements: vec![Rc::new(Expression::Name(String::from("foo")))]
+                ),
+                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+            ]
+        }
+    );
+}
+
+#[test]
+fn test_if_else_in_pure_scope() {
+    let lines: Vec<Result<Line, std::io::Error>> = vec![
+        Ok(Line {
+            number: 1,
+            indentation: 0,
+            tokens: vec![
+                Token::Name(String::from("foo")),
+                Token::Assignment,
+                Token::Arrow,
+            ],
+        }),
+        Ok(Line {
+            number: 2,
+            indentation: 1,
+            tokens: vec![
+                Token::If,
+                Token::Name(String::from("bar")),
+                Token::Then,
+                Token::True,
+            ],
+        }),
+        Ok(Line {
+            number: 4,
+            indentation: 1,
+            tokens: vec![Token::Else],
+        }),
+        Ok(Line {
+            number: 5,
+            indentation: 2,
+            tokens: vec![Token::Number(String::from("12.3"))],
+        }),
+    ];
+    let result = Parser::new(Box::new(lines.into_iter()), "")
+        .parse_outside_scope()
+        .unwrap();
+    assert_eq!(
+        result,
+        Scope::Impure {
+            lines: vec![ImpureLine::Assignment(
+                String::from("foo"),
+                Rc::new(Expression::Value(Value::Function {
+                    params: vec![],
+                    scope: Box::new(Scope::Pure {
+                        assignments: vec![],
+                        expression: Rc::new(Expression::If {
+                            condition: Rc::new(Expression::Name(String::from("bar"))),
+                            then_scope: Box::new(Scope::Pure {
+                                assignments: vec![],
+                                expression: Rc::new(Expression::Value(Value::Boolean(true)))
+                            }),
+                            else_scope: Box::new(Scope::Pure {
+                                assignments: vec![],
+                                expression: Rc::new(Expression::Value(
+                                    Value::Number(Number::Float(12.3))
+                                ))
+                            })
+                        })
+                    })
+                }))
+            )]
         }
     );
 }
@@ -706,12 +784,14 @@ fn test_one_line_if_else() {
         Expression::If {
             condition: Rc::new(Expression::Name(String::from("a"))),
             then_scope: Box::new(Scope::Impure {
-                assignments: vec![],
-                statements: vec![Rc::new(Expression::Name(String::from("a")))],
+                lines: vec![ImpureLine::Expression(Rc::new(Expression::Name(
+                    String::from("a"),
+                )))],
             }),
             else_scope: Box::new(Scope::Impure {
-                assignments: vec![],
-                statements: vec![Rc::new(Expression::Name(String::from("a")))],
+                lines: vec![ImpureLine::Expression(Rc::new(Expression::Name(
+                    String::from("a"),
+                )))],
             }),
         },
     )
