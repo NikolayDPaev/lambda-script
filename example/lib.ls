@@ -23,6 +23,13 @@ nth = [n, list] ->
     else
         nth(n - 1, right(list))
 
+last = [list] ->
+    if empty(list) then nil
+    else if empty(right(list)) then
+        left(list)
+    else 
+        last(right(list))
+
 zip = [list1, list2] ->
     if empty(list1) | empty(list2) then
         nil

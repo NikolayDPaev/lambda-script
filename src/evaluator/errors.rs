@@ -39,7 +39,7 @@ pub fn process_evaluator_error(err: EvaluatorError) -> String {
             expression
         ),
         EvaluatorError::InvalidOperation { msg, expr } => {
-            format!("Invalid operation in the expression: {:?} {:?}", msg, expr)
+            format!("Invalid operation in the expression: {:?}: {:?}", expr, msg)
         }
         EvaluatorError::SideEffectInPureScope(expr) => {
             format!("Expression produces side effect in pure scope: {:?}", expr)
