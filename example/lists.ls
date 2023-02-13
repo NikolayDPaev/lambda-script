@@ -65,23 +65,3 @@ foldLeft = [list, f, init] ->
 cat = [xs, ys] ->
     if empty(xs) then ys
     else cons(left(xs), cat(right(xs), ys))
-
-
--- Other functions
-parseNumber = [list] ->
-    parse = [list, n] ->
-        if empty(list) then
-            n
-        else
-            head = left(list)
-            if ((head - '0') < 10) & ((head - '0') >= 0) then
-                parse(right(list), (n * 10) + (left(list) - '0'))
-            else 
-                nil
-    
-    if empty(list) then
-        nil
-    else if left(list) == '-' then
-        -parse(right(list), 0)
-    else 
-        parse(list, 0)

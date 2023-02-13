@@ -1,4 +1,4 @@
-import "lib.ls"
+import "lists.ls"
 
 -- binary tree constructor
 nodeCons = [data, leftChild, rightChild] ->
@@ -29,7 +29,7 @@ genNaturals = ->
         cons(n, genNaturalsFrom(n+1))
     genNaturalsFrom(0)
 
--- splits the list into two lists: the first consists the elements at even positions and the second the rest
+-- splits the list into two lists: the first consists of the elements at even positions and the second the rest
 -- returns a tuple of lists
 splitList = [list] ->
     if empty(list) then

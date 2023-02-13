@@ -1,15 +1,17 @@
-actual = 'f'
+import "numbers.ls"
+
+actual = 12
 guess = impure ->
     input = read
-    input_char = left(input)
-    if actual == input_char then
+    num = parseNumber(input)
+    if actual == num then
         print("Success")
-    else if actual < input_char then
+    else if actual < num then
         print("Lower")
         guess()
     else 
         print("Higher")
         guess()
 
-print("Guess char")
+print("Guess num")
 guess()

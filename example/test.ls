@@ -1,4 +1,5 @@
-import "lib.ls"
+import "lists.ls"
+import "numbers.ls"
 
 input = read
 num = parseNumber(input)
@@ -18,5 +19,3 @@ input = read
 num = parseNumber(input)
 
 print(allStrings(num))
-
-import "guess.ls"
