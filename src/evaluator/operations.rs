@@ -342,6 +342,9 @@ fn eval_arith_op(op: ArithBinOp, left: &Value, right: &Value) -> Result<Value, E
             (Value::Number(Number::Integer(a)), Value::Number(Number::Integer(b))) => {
                 Ok(Value::Number(Number::Integer(a % b)))
             }
+            (Value::Number(Number::Float(a)), Value::Number(Number::Integer(b))) => {
+                Ok(Value::Number(Number::Integer((*a as i32) % b)))
+            }
             (..) => arith_error!(op, left.clone(), right.clone()),
         },
     }
