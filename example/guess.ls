@@ -1,4 +1,4 @@
-import "numbers.ls"
+import once "numbers.ls"
 
 actual = 12
 guess = impure ->
@@ -13,5 +13,11 @@ guess = impure ->
         print("Higher")
         guess()
 
-print("Guess num")
+print("Guess number:")
 guess()
+
+if true then
+    -- test has been imported in the outside scope
+    -- so it should not be imported again
+    import once "test.ls" -- should not execute
+else nil

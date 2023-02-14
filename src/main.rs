@@ -2,7 +2,7 @@ use std::{
     env,
     fs::File,
     io::{self, stdin, stdout, BufReader, BufWriter, Read, Write},
-    path,
+    path::{self, PathBuf},
 };
 #[macro_use]
 extern crate educe;
@@ -40,9 +40,9 @@ where
         }
     }
 
-    pub fn run<S: Read + 'static>(&mut self, script: S, filename: &str) -> i32 {
+    pub fn run<S: Read + 'static>(&mut self, script: S, file_path: PathBuf) -> i32 {
         let lines = lines(script);
-        let scope = Parser::new(lines, filename).parse_outside_scope();
+        let scope = Parser::new(lines, file_path).parse_outside_scope();
         match scope {
             Ok(s) => {
                 //println!("{:?}", s);
@@ -89,8 +89,18 @@ fn main() {
         Some(arg) => arg,
         _ => std::process::exit(1),
     };
-
-    let file = match File::open(filename.clone()) {
+    let canonical_path = match PathBuf::from(filename.clone()).canonicalize() {
+        io::Result::Ok(path) => path,
+        io::Result::Err(error) => {
+            println!(
+                "Invalid path: {:?}. Error: {}",
+                filename,
+                error.to_string()
+            );
+            std::process::exit(1)
+        }
+    };
+    let file = match File::open(canonical_path.clone()) {
         io::Result::Ok(file) => file,
         io::Result::Err(error) => {
             println!(
@@ -101,6 +111,6 @@ fn main() {
             std::process::exit(1)
         }
     };
-    let code = Interpreter::new(stdin(), stdout(), debug).run(file, &filename);
+    let code = Interpreter::new(stdin(), stdout(), debug).run(file, canonical_path);
     std::process::exit(code);
 }

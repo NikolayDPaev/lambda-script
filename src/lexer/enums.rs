@@ -24,6 +24,7 @@ pub enum Token {
     Empty,
     Nil,
     Import,
+    Once,
     Read,
     Print,
 }

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::Interpreter;
 
 #[test]
@@ -16,7 +18,7 @@ print(take(3, genNaturalsFrom(1)))";
     let mut output = Vec::<u8>::new();
     let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
 
-    assert_eq!(interpreter.run(script.as_bytes(), ""), 0);
+    assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);
     assert_eq!(
         String::from_utf8(output).unwrap(),
@@ -42,7 +44,7 @@ print(map(square, list))";
     let mut output = Vec::<u8>::new();
     let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
 
-    assert_eq!(interpreter.run(script.as_bytes(), ""), 0);
+    assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);
     assert_eq!(
         String::from_utf8(output).unwrap(),
@@ -67,7 +69,7 @@ print(getFunction('-')(2.5, 2))";
     let mut output = Vec::<u8>::new();
     let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
 
-    assert_eq!(interpreter.run(script.as_bytes(), ""), 0);
+    assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);
     assert_eq!(String::from_utf8(output).unwrap(), String::from("3\n0.5\n"));
 }
@@ -95,7 +97,7 @@ guess()
     let mut output = Vec::<u8>::new();
     let mut interpreter = Interpreter::new(input.as_bytes(), &mut output, false);
 
-    assert_eq!(interpreter.run(script.as_bytes(), ""), 0);
+    assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);
     assert_eq!(
         String::from_utf8(output).unwrap(),

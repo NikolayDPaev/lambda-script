@@ -11,7 +11,7 @@ fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
         indentation: 0,
         tokens,
     })];
-    let result = Parser::new(Box::new(lines.into_iter()), "")
+    let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
         .parse_outside_scope()
         .unwrap();
     assert_eq!(
@@ -28,7 +28,7 @@ fn test_one_line_expression_error(tokens: Vec<Token>, error: ParserError) {
         indentation: 0,
         tokens,
     })];
-    let result = Parser::new(Box::new(lines.into_iter()), "").parse_outside_scope();
+    let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new()).parse_outside_scope();
     assert_eq!(result, Err(error));
 }
 
@@ -416,7 +416,7 @@ fn test_assignments_name() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = Parser::new(Box::new(lines.into_iter()), "")
+    let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
         .parse_outside_scope()
         .unwrap();
     assert_eq!(
@@ -474,7 +474,7 @@ fn test_function_multiple_args() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = Parser::new(Box::new(lines.into_iter()), "")
+    let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
         .parse_outside_scope()
         .unwrap();
     assert_eq!(
@@ -525,7 +525,7 @@ fn test_function_no_args() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = Parser::new(Box::new(lines.into_iter()), "")
+    let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
         .parse_outside_scope()
         .unwrap();
     assert_eq!(
@@ -577,7 +577,7 @@ fn test_function_impure_no_args() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = Parser::new(Box::new(lines.into_iter()), "")
+    let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
         .parse_outside_scope()
         .unwrap();
     assert_eq!(
@@ -650,7 +650,7 @@ fn test_if_else() {
             tokens: vec![Token::Name(String::from("foo"))],
         }),
     ];
-    let result = Parser::new(Box::new(lines.into_iter()), "")
+    let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
         .parse_outside_scope()
         .unwrap();
     assert_eq!(
@@ -718,7 +718,7 @@ fn test_if_else_in_pure_scope() {
             tokens: vec![Token::Number(String::from("12.3"))],
         }),
     ];
-    let result = Parser::new(Box::new(lines.into_iter()), "")
+    let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
         .parse_outside_scope()
         .unwrap();
     assert_eq!(

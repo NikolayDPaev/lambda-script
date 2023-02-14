@@ -1,4 +1,4 @@
-import "lists.ls"
+import once "lists.ls"
 
 -- binary tree constructor
 nodeCons = [data, leftChild, rightChild] ->

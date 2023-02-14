@@ -1,4 +1,4 @@
-import "lists.ls"
+import once "lists.ls"
 
 genNaturalsFrom = [n] ->
     cons(n, genNaturalsFrom(n + 1))
