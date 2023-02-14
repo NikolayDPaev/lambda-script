@@ -3,7 +3,7 @@ fib = [n] ->
     else if n == 1 then 1
     else fib(n-1) + fib(n-2)
 
--- print(fib(25))
+print(fib(25))
 
 iterFib = [n] ->
     helper = [n, a, b] ->
