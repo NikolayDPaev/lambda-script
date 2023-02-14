@@ -3,7 +3,7 @@ mod operations;
 #[cfg(test)]
 mod tests;
 
-use by_address::ByAddress;
+use by_address::ByThinAddress;
 use rpds::HashTrieMap;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::{collections::HashMap, rc::Rc};
@@ -22,6 +22,7 @@ macro_rules! add_outside_assignments {
     };
 }
 
+// Creates a new thunk if the expression is not already a thunk or value.
 macro_rules! make_thunk {
     ($expr:expr, $assignments: expr, $pure: expr) => {
         match $expr.as_ref() {
@@ -64,7 +65,7 @@ fn try_resolve_name(
 }
 
 pub struct Evaluator<'a, R: Read, W: Write> {
-    thunk_memoization_map: HashMap<ByAddress<Rc<Expression>>, Rc<Expression>>,
+    thunk_memoization_map: HashMap<ByThinAddress<Rc<Expression>>, Rc<Expression>>,
     input: &'a mut BufReader<R>,
     output: &'a mut BufWriter<W>,
     debug: bool,
@@ -115,7 +116,7 @@ where
             if let Expression::Value(value) = expression.as_ref() {
                 while let Some(thunk) = thunks_for_memo.pop() {
                     self.thunk_memoization_map
-                        .insert(ByAddress(thunk.clone()), expression.clone());
+                        .insert(ByThinAddress(thunk.clone()), expression.clone());
                 }
                 return Ok(value.clone());
             }
@@ -197,7 +198,9 @@ where
         let result = match expr.as_ref() {
             Expression::Value(_) => expr.clone(),
             Expression::Thunk(inside_expr, env, pure) => {
-                if let Some(expression) = self.thunk_memoization_map.get(&ByAddress(expr.clone())) {
+                if let Some(expression) =
+                    self.thunk_memoization_map.get(&ByThinAddress(expr.clone()))
+                {
                     if self.debug {
                         writeln!(
                             self.output,
