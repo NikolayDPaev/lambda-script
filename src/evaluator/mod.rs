@@ -12,16 +12,6 @@ use crate::evaluator::errors::EvaluatorError;
 use crate::evaluator::operations::*;
 use crate::parser::enums::*;
 
-macro_rules! add_outside_assignments {
-    ($outside_assignments: expr, $assignments: expr) => {
-        $assignments
-            .iter()
-            .fold($outside_assignments.clone(), |acc, (key, value)| {
-                acc.insert(key.clone(), value.clone())
-            })
-    };
-}
-
 macro_rules! make_thunk {
     ($expr:expr, $assignments: expr, $pure: expr) => {
         match $expr.as_ref() {
@@ -145,7 +135,12 @@ where
                 assignments,
                 expression,
             } => {
-                let assignments_map = add_outside_assignments!(outside_assignments, assignments);
+                let mut assignments_map = outside_assignments.clone();
+                assignments
+                    .iter()
+                    .for_each(|(key, value)| {
+                        assignments_map.insert_mut(key.clone(), value.clone())
+                    });
 
                 Ok(make_thunk!(expression.clone(), assignments_map, true))
             }
@@ -166,7 +161,7 @@ where
                                 Expression::ReadCall => self.force_read(),
                                 _ => Rc::new(Expression::Value(self.force_eval(expr.clone(), assignments_map.clone(), false)?)),
                             };
-                            assignments_map = assignments_map.insert(name.to_string(), evaluated_expr);
+                            assignments_map.insert_mut(name.to_string(), evaluated_expr);
                         },
                         ImpureLine::Expression(expr) => {
                             return_expr = Rc::new(Expression::Value(self.force_eval(
@@ -230,10 +225,10 @@ where
                         }
                         
                         // group params and args and add to environment
-                        let assignments = params.into_iter().zip(resolved_args.into_iter()).fold(
-                            assignments.clone(),
-                            |acc, (string, expr)| {
-                                acc.insert(
+                        let mut assignments = assignments.clone();
+                        params.into_iter().zip(resolved_args.into_iter()).for_each(
+                            |(string, expr)| {
+                                assignments.insert_mut(
                                     string.clone(),
                                     make_thunk!(
                                         expr,
