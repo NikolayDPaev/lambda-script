@@ -342,15 +342,20 @@ fn test_evaluate_read_print_function() {
                     Rc::new(Expression::Value(Value::Function {
                         params: vec![],
                         scope: Box::new(Scope::Impure {
-                            lines : vec![
-                                ImpureLine::Assignment(String::from("b"), Rc::new(Expression::ReadCall)),
-                                ImpureLine::Expression(Rc::new(Expression::PrintCall(Rc::new(Expression::Name(
-                                    String::from("b")
-                                ))))),
-                                ImpureLine::Expression(Rc::new(Expression::PrintCall(Rc::new(Expression::Cons(
-                                    Rc::new(Expression::Value(Value::Char('a'))),
-                                    Rc::new(Expression::Name(String::from("b")))
-                                )))))
+                            lines: vec![
+                                ImpureLine::Assignment(
+                                    String::from("b"),
+                                    Rc::new(Expression::ReadCall)
+                                ),
+                                ImpureLine::Expression(Rc::new(Expression::PrintCall(Rc::new(
+                                    Expression::Name(String::from("b"))
+                                )))),
+                                ImpureLine::Expression(Rc::new(Expression::PrintCall(Rc::new(
+                                    Expression::Cons(
+                                        Rc::new(Expression::Value(Value::Char('a'))),
+                                        Rc::new(Expression::Name(String::from("b")))
+                                    )
+                                ))))
                             ]
                         })
                     }))

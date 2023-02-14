@@ -92,11 +92,7 @@ fn main() {
     let canonical_path = match PathBuf::from(filename.clone()).canonicalize() {
         io::Result::Ok(path) => path,
         io::Result::Err(error) => {
-            println!(
-                "Invalid path: {:?}. Error: {}",
-                filename,
-                error.to_string()
-            );
+            println!("Invalid path: {:?}. Error: {}", filename, error.to_string());
             std::process::exit(1)
         }
     };
