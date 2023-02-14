@@ -205,9 +205,7 @@ fn test_comment() {
     let lines_vec = lines(input.as_bytes()).collect::<Vec<_>>();
     assert_eq!(lines_vec[0].as_ref().unwrap().indentation, 0);
     assert_eq!(lines_vec[0].as_ref().unwrap().number, 1);
-    assert!(
-        lines_vec[0].as_ref().unwrap().tokens.len() == 0
-    );
+    assert!(lines_vec[0].as_ref().unwrap().tokens.len() == 0);
 
     let input = "  list=name--comment";
     let lines_vec = lines(input.as_bytes()).collect::<Vec<_>>();

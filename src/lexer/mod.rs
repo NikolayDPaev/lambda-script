@@ -135,7 +135,7 @@ impl Line {
                     tokens.push(Token::Arrow);
                 } else if matches!(iter.peek(), Some(x) if *x == '-') {
                     // comment
-                    break;                    
+                    break;
                 } else {
                     tokens.push(Token::Operation(Op::Minus));
                 }

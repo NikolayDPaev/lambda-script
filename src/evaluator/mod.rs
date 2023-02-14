@@ -136,17 +136,13 @@ where
                 expression,
             } => {
                 let mut assignments_map = outside_assignments.clone();
-                assignments
-                    .iter()
-                    .for_each(|(key, value)| {
-                        assignments_map.insert_mut(key.clone(), value.clone())
-                    });
+                assignments.iter().for_each(|(key, value)| {
+                    assignments_map.insert_mut(key.clone(), value.clone())
+                });
 
                 Ok(make_thunk!(expression.clone(), assignments_map, true))
             }
-            Scope::Impure {
-                lines,
-            } => {
+            Scope::Impure { lines } => {
                 // add the outside assignments
                 // force eval the assignments and the expressions
                 // eval the read calls
@@ -159,10 +155,14 @@ where
                             let evaluated_expr = match expr.as_ref() {
                                 // if assignment expression is read call, force its evaluation
                                 Expression::ReadCall => self.force_read(),
-                                _ => Rc::new(Expression::Value(self.force_eval(expr.clone(), assignments_map.clone(), false)?)),
+                                _ => Rc::new(Expression::Value(self.force_eval(
+                                    expr.clone(),
+                                    assignments_map.clone(),
+                                    false,
+                                )?)),
                             };
                             assignments_map.insert_mut(name.to_string(), evaluated_expr);
-                        },
+                        }
                         ImpureLine::Expression(expr) => {
                             return_expr = Rc::new(Expression::Value(self.force_eval(
                                 expr.clone(),
@@ -223,7 +223,7 @@ where
                         for arg in args.iter() {
                             resolved_args.push(try_resolve_name(arg.clone(), assignments.clone())?);
                         }
-                        
+
                         // group params and args and add to environment
                         let mut assignments = assignments.clone();
                         params.into_iter().zip(resolved_args.into_iter()).for_each(
@@ -261,14 +261,15 @@ where
                 Rc::new(Expression::Value(Value::Nil))
             }
             Expression::Cons(left, right) => match (left.as_ref(), right.as_ref()) {
-                (Expression::Value(..), Expression::Value(..)) |
-                (Expression::Value(..), Expression::Thunk(..)) |
-                (Expression::Thunk(..), Expression::Value(..)) |
-                (Expression::Thunk(..), Expression::Thunk(..)) => Rc::new(Expression::Value(
-                    Value::Tuple(
+                (Expression::Value(..), Expression::Value(..))
+                | (Expression::Value(..), Expression::Thunk(..))
+                | (Expression::Thunk(..), Expression::Value(..))
+                | (Expression::Thunk(..), Expression::Thunk(..)) => {
+                    Rc::new(Expression::Value(Value::Tuple(
                         Box::new(self.force_eval(left.clone(), assignments.clone(), pure)?),
-                        Box::new(self.force_eval(right.clone(), assignments, pure)?))
-                )),
+                        Box::new(self.force_eval(right.clone(), assignments, pure)?),
+                    )))
+                }
                 (Expression::Value(_), _) => Rc::new(Expression::Cons(
                     left.clone(),
                     make_thunk!(right.clone(), assignments, pure),

@@ -738,9 +738,9 @@ fn test_if_else_in_pure_scope() {
                             }),
                             else_scope: Box::new(Scope::Pure {
                                 assignments: vec![],
-                                expression: Rc::new(Expression::Value(
-                                    Value::Number(Number::Float(12.3))
-                                ))
+                                expression: Rc::new(Expression::Value(Value::Number(
+                                    Number::Float(12.3)
+                                )))
                             })
                         })
                     })
