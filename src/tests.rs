@@ -104,3 +104,24 @@ guess()
         String::from("Guess char\nHigher\nLower\nSuccess\n")
     );
 }
+
+#[test]
+#[cfg_attr(miri, ignore)]
+fn test_tail_recursion() {
+    let script = "
+countTo = [n] ->
+    loop = [m, n] ->
+        if m == n then m
+        else
+            loop(m + 1, n)
+    loop(0, n)
+
+print(countTo(1000))";
+    let input = vec![];
+    let mut output = Vec::<u8>::new();
+    let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
+
+    assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
+    std::mem::drop(interpreter);
+    assert_eq!(String::from_utf8(output).unwrap(), String::from("1000\n"));
+}
