@@ -107,7 +107,7 @@ impl ParserError {
         };
 
         format!(
-            "Error parsing file: {}, line: {}:\n{}.\n",
+            "Error parsing file: {}, line: {}:\nError: {}.\n",
             self.filename, self.line, message
         )
     }

@@ -45,7 +45,6 @@ where
         let scope = Parser::new(lines, file_path).parse_outside_scope();
         match scope {
             Ok(s) => {
-                //println!("{:?}", s);
                 let mut evaluator = Evaluator::new(&mut self.input, &mut self.output, self.debug);
                 let result = evaluator.eval_outside_scope(&s);
                 match result {

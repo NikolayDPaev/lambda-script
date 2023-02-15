@@ -66,7 +66,7 @@ pub fn eval_unary_op(op: UnaryOp, value: &Value) -> Result<Value, EvaluatorError
         UnaryOp::Minus => match value {
             Value::Number(Number::Float(f)) => Ok(Value::Number(Number::Float(-f))),
             Value::Number(Number::Integer(i)) => Ok(Value::Number(Number::Integer(-i))),
-            _ => Err(EvaluatorError::InvalidOperation {
+            _ => Err(EvaluatorError::InvalidUnaryOperation {
                 msg: String::from("Unary operation minus is defined only for numbers"),
                 expr: Rc::new(Expression::Value(value.clone())),
             }),
@@ -74,7 +74,7 @@ pub fn eval_unary_op(op: UnaryOp, value: &Value) -> Result<Value, EvaluatorError
         UnaryOp::Negation => match value {
             Value::Boolean(true) => Ok(Value::Boolean(false)),
             Value::Boolean(false) => Ok(Value::Boolean(true)),
-            _ => Err(EvaluatorError::InvalidOperation {
+            _ => Err(EvaluatorError::InvalidUnaryOperation {
                 msg: String::from("Unary operation negation is defined only for booleans"),
                 expr: Rc::new(Expression::Value(value.clone())),
             }),
@@ -86,33 +86,15 @@ fn eval_bool_op(op: BoolBinOp, left: &Value, right: &Value) -> Result<Value, Eva
     match op {
         BoolBinOp::And => match (left, right) {
             (Value::Boolean(a), Value::Boolean(b)) => return Ok(Value::Boolean(*a && *b)),
-            _ => Err(EvaluatorError::InvalidOperation {
-                msg: String::from("Boolean operation and is defined only for booleans"),
-                expr: Rc::new(Expression::Value(Value::Tuple(
-                    Box::new(left.clone()),
-                    Box::new(right.clone()),
-                ))),
-            }),
+            _ => Err(EvaluatorError::BooleanError { op, value_1: left.clone(), value_2: right.clone() }),
         },
         BoolBinOp::Or => match (left, right) {
             (Value::Boolean(a), Value::Boolean(b)) => return Ok(Value::Boolean(*a || *b)),
-            _ => Err(EvaluatorError::InvalidOperation {
-                msg: String::from("Boolean operation or is defined only for booleans"),
-                expr: Rc::new(Expression::Value(Value::Tuple(
-                    Box::new(left.clone()),
-                    Box::new(right.clone()),
-                ))),
-            }),
+            _ => Err(EvaluatorError::BooleanError { op, value_1: left.clone(), value_2: right.clone() }),
         },
         BoolBinOp::Xor => match (left, right) {
             (Value::Boolean(a), Value::Boolean(b)) => return Ok(Value::Boolean(*a ^ *b)),
-            _ => Err(EvaluatorError::InvalidOperation {
-                msg: String::from("Boolean operation xor is defined only for booleans"),
-                expr: Rc::new(Expression::Value(Value::Tuple(
-                    Box::new(left.clone()),
-                    Box::new(right.clone()),
-                ))),
-            }),
+            _ => Err(EvaluatorError::BooleanError { op, value_1: left.clone(), value_2: right.clone() }),
         },
     }
 }

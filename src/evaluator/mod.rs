@@ -193,7 +193,7 @@ where
         pure: bool,
     ) -> Result<Rc<Expression>, EvaluatorError> {
         if self.debug {
-            writeln!(self.output, "Evaluating: {:?}\n", expr).unwrap();
+            writeln!(self.output, "Evaluating: {:?}", expr).unwrap();
         }
         let result = match expr.as_ref() {
             Expression::Value(_) => expr.clone(),
@@ -300,7 +300,7 @@ where
                     Rc::new(Expression::Value(*left.clone()))
                 }
                 Expression::Value(_) => {
-                    return Err(EvaluatorError::InvalidOperation {
+                    return Err(EvaluatorError::InvalidUnaryOperation {
                         msg: String::from("Left is defined only for cons and tuple"),
                         expr: expr.clone(),
                     })
@@ -317,7 +317,7 @@ where
                     Rc::new(Expression::Value(*right.clone()))
                 }
                 Expression::Value(_) => {
-                    return Err(EvaluatorError::InvalidOperation {
+                    return Err(EvaluatorError::InvalidUnaryOperation {
                         msg: String::from("Right is defined only for cons and tuple"),
                         expr: expr.clone(),
                     })
@@ -335,7 +335,7 @@ where
                     Rc::new(Expression::Value(Value::Boolean(false)))
                 }
                 Expression::Value(_) => {
-                    return Err(EvaluatorError::InvalidOperation {
+                    return Err(EvaluatorError::InvalidUnaryOperation {
                         msg: String::from("Empty is defined only for cons and tuple"),
                         expr: expr.clone(),
                     })
