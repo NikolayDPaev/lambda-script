@@ -24,6 +24,10 @@ prints to stdout
 (3, (4, (5, (6, (7, nil)))))
 ```
 
+## Running
+ - ```cargo run --release -- <filename>```
+ - or as executable ```lambda-script <filename>```
+
 # Very short description
 
 ## Expressions
