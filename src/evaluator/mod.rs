@@ -69,6 +69,8 @@ pub struct Evaluator<'a, R: Read, W: Write> {
     input: &'a mut BufReader<R>,
     output: &'a mut BufWriter<W>,
     debug: bool,
+    current_file: String,
+    current_line: u32,
 }
 
 impl<R, W> Evaluator<'_, R, W>
@@ -86,6 +88,8 @@ where
             input,
             output,
             debug,
+            current_file: String::new(),
+            current_line: 0
         }
     }
 
@@ -110,17 +114,26 @@ where
         let mut expression = expr.clone();
         let mut thunks_for_memo = vec![];
         loop {
-            if pure && matches!(expression.as_ref(), Expression::Thunk(..)) {
-                thunks_for_memo.push(expression.clone());
+            match expression.as_ref() {
+                Expression::Thunk(..) if pure => {
+                    thunks_for_memo.push(expression.clone());
+                },
+                Expression::Value(value) => {
+                    if let Value::Function { params: _, scope } = value {
+                        self.current_file = scope.filename.clone();
+                        self.current_line = scope.line;
+                    }
+                    while let Some(thunk) = thunks_for_memo.pop() {
+                        self.thunk_memoization_map
+                            .insert(ByThinAddress(thunk.clone()), expression.clone());
+                    }
+                    return Ok(value.clone());
+                },
+                _ => ()
             }
-            if let Expression::Value(value) = expression.as_ref() {
-                while let Some(thunk) = thunks_for_memo.pop() {
-                    self.thunk_memoization_map
-                        .insert(ByThinAddress(thunk.clone()), expression.clone());
-                }
-                return Ok(value.clone());
-            }
-            expression = self.eval_expression(expression, assignments.clone(), pure)?
+            expression = self.eval_expression(expression, assignments.clone(), pure).map_err(|error|{
+                EvaluatorError::ErrorWithInfo { filename: self.current_file.clone(), line: self.current_line, error: Box::new(error) }
+            })?;
         }
     }
 
@@ -141,8 +154,8 @@ where
         scope: &Scope,
         outside_assignments: HashTrieMap<String, Rc<Expression>>,
     ) -> Result<Rc<Expression>, EvaluatorError> {
-        match scope {
-            Scope::Pure {
+        match &scope.kind {
+            ScopeKind::Pure {
                 assignments,
                 expression,
             } => {
@@ -150,7 +163,7 @@ where
 
                 Ok(make_thunk!(expression.clone(), assignments_map, true))
             }
-            Scope::Impure { lines } => {
+            ScopeKind::Impure { lines } => {
                 // add the outside assignments
                 // force eval the assignments and the expressions
                 // eval the read calls
@@ -223,7 +236,7 @@ where
             Expression::FunctionCall { name, args } => {
                 match self.force_eval(name.clone(), assignments.clone(), pure)? {
                     Value::Function { params, scope } => {
-                        if pure && matches!(scope.as_ref(), Scope::Impure { .. }) {
+                        if pure && matches!(scope.as_ref(), Scope{filename: _, line: _, kind: ScopeKind::Impure { .. }}) {
                             return Err(EvaluatorError::SideEffectInPureScope(name.clone()));
                         }
                         if args.len() != params.len() {
@@ -244,7 +257,7 @@ where
                                     make_thunk!(
                                         expr,
                                         assignments,
-                                        matches!(scope.as_ref(), Scope::Pure { .. })
+                                        matches!(scope.as_ref(), Scope{filename: _, line: _, kind: ScopeKind::Pure { .. }})
                                     ),
                                 )
                             },

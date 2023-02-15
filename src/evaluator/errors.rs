@@ -2,8 +2,13 @@ use std::rc::Rc;
 
 use crate::parser::enums::{ArithBinOp, CmpBinOp, Expression, Value};
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum EvaluatorError {
+    ErrorWithInfo{
+        filename: String,
+        line: u32,
+        error: Box<EvaluatorError>
+    },
     UnknownName(Rc<Expression>),
     FunctionExpected(Rc<Expression>),
     ArgsAndParamsLengthsMismatch(Rc<Expression>),
@@ -28,6 +33,9 @@ pub enum EvaluatorError {
 
 pub fn process_evaluator_error(err: EvaluatorError) -> String {
     match err {
+        EvaluatorError::ErrorWithInfo { filename, line, error } => {
+            format!("Filename: {}, Scope line: {}, Error while evaluating expression:\n {}", filename, line, process_evaluator_error(error.as_ref().clone()))
+        }
         EvaluatorError::UnknownName(expression) => {
             format!("Use of undeclared name in this scope: {:?}", expression)
         }

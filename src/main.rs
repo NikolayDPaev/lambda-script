@@ -54,7 +54,7 @@ where
                     Ok(_) => (),
                     Err(e) => self
                         .output
-                        .write_fmt(format_args!("{}", process_evaluator_error(e)))
+                        .write_fmt(format_args!("{}", process_evaluator_error(e.clone())))
                         .unwrap(),
                 }
             }

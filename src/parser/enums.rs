@@ -10,7 +10,13 @@ use super::FunctionLine;
 pub type ImpureLine = FunctionLine;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Scope {
+pub struct Scope {
+    pub filename: String,
+    pub line: u32,
+    pub kind: ScopeKind
+}
+#[derive(Debug, PartialEq, Clone)]
+pub enum ScopeKind {
     Pure {
         assignments: Vec<(String, Rc<Expression>)>,
         expression: Rc<Expression>,

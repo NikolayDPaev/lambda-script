@@ -206,13 +206,13 @@ impl Parser {
                 if expressions.len() != 1 {
                     panic!("Expressions must be no more than one in pure scope");
                 }
-                Ok(Scope::Pure {
+                Ok(Scope{filename: self.filename.clone(), line: last_line_number, kind:  ScopeKind::Pure {
                     assignments,
                     expression: expressions.pop().unwrap(),
-                })
+                }})
             }
         } else {
-            Ok(Scope::Impure { lines })
+            Ok(Scope{filename: self.filename.clone(), line: last_line_number, kind:  ScopeKind::Impure { lines }})
         }
     }
 
@@ -263,10 +263,10 @@ impl Parser {
                     )?;
 
                     match scope {
-                        Scope::Impure {
+                        Scope{filename: _, line: _, kind: ScopeKind::Impure {
                             lines: mut import_lines,
-                        } => lines.append(&mut import_lines),
-                        Scope::Pure { .. } => panic!("Unexpected Pure scope in import"),
+                        }} => lines.append(&mut import_lines),
+                        Scope{filename: _, line: _, kind: ScopeKind::Pure { .. }} => panic!("Unexpected Pure scope in import"),
                     };
                 }
             }
@@ -432,7 +432,7 @@ impl Parser {
                         false,
                         imported.clone(),
                     )?;
-                    scope = new_scope_with_single_expr(expr, false);
+                    scope = self.new_scope_with_single_expr(expr, false, line_num);
                 } else {
                     scope =
                         Box::new(self.parse_scope(indentation.into(), false, imported.clone())?);
@@ -450,7 +450,7 @@ impl Parser {
                         pure,
                         imported.clone(),
                     )?;
-                    scope = new_scope_with_single_expr(expr, true);
+                    scope = self.new_scope_with_single_expr(expr, true, line_num);
                 } else {
                     scope =
                         Box::new(self.parse_scope(indentation.into(), true, imported.clone())?);
@@ -476,7 +476,7 @@ impl Parser {
                         pure,
                         imported.clone(),
                     )?;
-                    scope = new_scope_with_single_expr(expr, true);
+                    scope = self.new_scope_with_single_expr(expr, true, line_num);
                 } else {
                     scope =
                         Box::new(self.parse_scope(indentation.into(), true, imported.clone())?);
@@ -509,7 +509,7 @@ impl Parser {
                         pure,
                         imported.clone(),
                     )?;
-                    then_scope = new_scope_with_single_expr(expr, pure);
+                    then_scope = self.new_scope_with_single_expr(expr, pure, line_num);
                     // if yes, check for else_expression on the same line
                     if let Some(_) = tokens.peek() {
                         assert_next_token!(
@@ -519,7 +519,7 @@ impl Parser {
                         );
                         let expr =
                             self.parse_expression(tokens, line_num, indentation, pure, imported)?;
-                        else_scope = new_scope_with_single_expr(expr, pure);
+                        else_scope = self.new_scope_with_single_expr(expr, pure, line_num);
 
                         // if both - return
                         return Ok(Expression::If {
@@ -567,7 +567,7 @@ impl Parser {
                         pure,
                         imported.clone(),
                     )?;
-                    else_scope = new_scope_with_single_expr(expr, pure);
+                    else_scope = self.new_scope_with_single_expr(expr, pure, line_num);
                 } else {
                     else_scope =
                         Box::new(self.parse_scope(indentation.into(), pure, imported.clone())?);
@@ -715,20 +715,20 @@ impl Parser {
             };
         }
     }
-}
-
-fn new_scope_with_single_expr(expr: Expression, pure: bool) -> Box<Scope> {
-    if pure {
-        Box::new(Scope::Pure {
-            assignments: vec![],
-            expression: Rc::new(expr),
-        })
-    } else {
-        Box::new(Scope::Impure {
-            lines: vec![FunctionLine::Expression(Rc::new(expr))],
-        })
+    fn new_scope_with_single_expr(&self, expr: Expression, pure: bool, line: u32) -> Box<Scope> {
+        if pure {
+            Box::new(Scope{filename: self.filename.clone(), line, kind: ScopeKind::Pure {
+                assignments: vec![],
+                expression: Rc::new(expr),
+            }})
+        } else {
+            Box::new(Scope{filename: self.filename.clone(), line, kind: ScopeKind::Impure {
+                lines: vec![FunctionLine::Expression(Rc::new(expr))],
+            }})
+        }
     }
 }
+
 
 fn parse_binary_operation(
     op: &Op,
