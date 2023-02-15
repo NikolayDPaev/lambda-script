@@ -3,10 +3,20 @@
 Syntax highlighting for the custom functional programming language Lambda script
 
 ## Installation
-```code --install-extension lambda-script-syntax-highlighter-0.0.1.vsix```
+```
+npm install -g @vscode/vsce@2.15.0
+vsce package
+````
+```
+code --install-extension lambda-script-syntax-highlighter-0.0.2.vsix
+```
 
 ## Release Notes
 
-### 1.0.0
+### 0.0.1
 
-Initial release
+Initial version
+
+### 0.0.2
+
+Better highlighting for functions
