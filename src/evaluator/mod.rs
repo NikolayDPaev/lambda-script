@@ -99,8 +99,7 @@ where
         }
     }
 
-    // Right now the memoization happens only at low level, because it is done by address
-    // and there are Rc::new calls that create new addresses
+    // Evaluates the expression to a value and if it is a thunk, memoizes the result
     fn force_eval(
         &mut self,
         expr: Rc<Expression>,
@@ -211,7 +210,11 @@ where
                     }
                     return Ok(expression.clone());
                 }
-                self.eval_expression(inside_expr.clone(), env.clone(), *pure)?
+                let result = self.eval_expression(inside_expr.clone(), env.clone(), *pure)?;
+                
+                // super important for the full memoization
+                self.thunk_memoization_map.insert(ByThinAddress(expr), result.clone());
+                result
             }
             Expression::Name(name) => {
                 if let Some(expr) = assignments.get(name) {

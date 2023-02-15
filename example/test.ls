@@ -12,7 +12,7 @@ num = numberPrompt()
 fibList = -> cons(0, cons(1, zipMap([x, y] -> x + y, zip(fibList(), right(fibList())))))
 print(take(num, fibList()))
 
-allStrings = impure [n] ->
+allStrings = [n] ->
     if n == 1 then cons(cons(0, nil), cons(cons(1, nil), nil))
     else
         rest = allStrings(n - 1)
