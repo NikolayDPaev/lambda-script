@@ -1,0 +1,35 @@
+{
+    "name": "lambda-script-syntax-highlighter",
+    "displayName": "Lambda script syntax highlighter",
+    "description": "Syntax highlighting for lambda script",
+    "publisher": "0",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "lambdascript",
+                "aliases": [
+                    "Lambda script",
+                    "lambdascript"
+                ],
+                "extensions": [
+                    ".ls"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "lambdascript",
+                "scopeName": "source.ls",
+                "path": "./syntaxes/lambdascript.tmLanguage.json"
+            }
+        ]
+    }
+}

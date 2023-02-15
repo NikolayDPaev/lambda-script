@@ -1,0 +1,67 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Lambda script",
+	"patterns": [
+		{
+			"include": "#strings"
+		},
+        {
+			"match": "\\b(false|nil|true)\\b",
+			"name": "constant.language.lambdascript"
+		},
+        {
+            "match": "\\b(cons|left|right|empty|read|print|import|once)\\b",
+			"name": "support.function.lambdascript"
+		},
+        {
+			"match": "\\b(if|else|then|impure|->)\\b",
+            "name": "keyword.control.lambdascript"
+        },
+        {
+			"match": "\\||\\&|\\!|\\^|\\+|-|%|\\*\\*?|\\/\\/?|==?|!=|<=?|>=?",
+			"name": "keyword.operator.lambdascript"
+		},
+        {
+            "begin": "#",
+            "end": "\\n",
+            "name": "comment.line.double-dash.lambdascript"
+        },
+        {
+			"match": "([0-9]+[.])?[0-9]+",
+			"name": "constant.numeric.float.lambdascript"
+		},
+		{
+			"match": "[0-9]+",
+			"name": "constant.numeric.integer.lambdascript"
+		},
+        {
+			"match": "\\b(impure)\\b",
+			"name": "entity.name.tag.lambdascript"
+		},
+        {
+            "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(\\()",
+			"name": "entity.name.function.lambdascript"
+		},
+        {
+            "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+            "name": "variable.other.lambdascript"
+        }
+	],
+	"repository": {
+		"strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.lambdascript",
+			        "begin": "\"",
+			        "end": "\""
+                },
+                {
+                    "name": "string.quoted.single.lambdascript",
+			        "begin": "'",
+			        "end": "'"
+                }
+            ]
+		}
+	},
+	"scopeName": "source.ls"
+}
