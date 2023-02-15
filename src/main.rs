@@ -83,10 +83,14 @@ fn main() {
         }
         Some(arg) if arg == "-h" || arg == "--help" => {
             println!("Usage: lambda-script.exe <file>");
+            println!("Options: --debug (-d), --help (-h)");
             std::process::exit(0)
         }
         Some(arg) => arg,
-        _ => std::process::exit(1),
+        _ => {
+            println!("Usage: lambda-script.exe <file>");
+            std::process::exit(1)
+        }
     };
     let canonical_path = match PathBuf::from(filename.clone()).canonicalize() {
         io::Result::Ok(path) => path,
