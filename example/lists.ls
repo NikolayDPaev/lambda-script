@@ -1,4 +1,4 @@
--- List functions
+# List functions
 length = [list] -> if empty(list) then 0 else 1 + length(right(list))
 
 map = [f, list] ->

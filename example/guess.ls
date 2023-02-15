@@ -17,7 +17,7 @@ print("Guess number:")
 guess()
 
 if true then
-    -- test has been imported in the outside scope
-    -- so it should not be imported again
-    import once "test.ls" -- should not execute
+    # test has been imported in the outside scope
+    # so it should not be imported again
+    import once "test.ls" # should not execute
 else nil

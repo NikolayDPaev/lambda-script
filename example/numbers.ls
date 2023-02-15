@@ -1,15 +1,15 @@
--- Number functions
+# Number functions
 
--- min, max, abs
+# min, max, abs
 min = [a, b] -> if a < b then a else b
 max = [a, b] -> if a > b then a else b
 abs = [n] -> if n < 0 then -n else n
 
--- parses a string to number
+# parses a string to number
 parseNumber = [string] ->
-    -- string - the rest of the string
-    -- n - accumulated number by far
-    -- digitsAfterPoint - the number of digits after the decimal point
+    # string - the rest of the string
+    # n - accumulated number by far
+    # digitsAfterPoint - the number of digits after the decimal point
     parse = [string, n, digitsAfterPoint] ->
         if empty(string) then
             if digitsAfterPoint > 0 then n / (10 ** (digitsAfterPoint - 1))
@@ -34,7 +34,7 @@ parseNumber = [string] ->
     else 
         parse(string, 0, 0)
 
--- parses a number as integer to a string
+# parses a number as integer to a string
 intToString = [n] -> 
     helper = [n, string] ->
         if n == 0 then string

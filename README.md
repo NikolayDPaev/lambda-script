@@ -65,11 +65,11 @@ import "example.ls"
 import once "lib.ls"
 ```
 ## Comments
-Symbols -- marks beginning of a **comment**. Comments end at the end of the line.
+Symbols # marks beginning of a **comment**. Comments end at the end of the line.
 Example:
 ```
--- This is a comment
-print(2 + 5) --This is another comment
+# This is a comment
+print(2 + 5) #This is another comment
 ```
 
 ## Operators

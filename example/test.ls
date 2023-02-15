@@ -1,7 +1,7 @@
 import once "lists.ls"
 
 numberPrompt = impure ->
-    -- imports only in the current scope
+    # imports only in the current scope
     import once "numbers.ls"
     print("How many fibs do you want?")
     input = read
@@ -21,7 +21,7 @@ allStrings = impure [n] ->
         cat(first, second)
 
 
--- has not been imported yet in this scope
+# has not been imported yet in this scope
 import once "numbers.ls"
 print("What k to use for all strings with length k?")
 input = read

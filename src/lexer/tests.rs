@@ -201,13 +201,21 @@ fn test_cons() {
 
 #[test]
 fn test_comment() {
-    let input = "-- just comment list=name";
+    let input = "# just comment list=name\nname";
     let lines_vec = lines(input.as_bytes()).collect::<Vec<_>>();
     assert_eq!(lines_vec[0].as_ref().unwrap().indentation, 0);
     assert_eq!(lines_vec[0].as_ref().unwrap().number, 1);
     assert!(lines_vec[0].as_ref().unwrap().tokens.len() == 0);
 
-    let input = "  list=name--comment";
+    assert_eq!(lines_vec[1].as_ref().unwrap().indentation, 0);
+    assert_eq!(lines_vec[1].as_ref().unwrap().number, 2);
+    assert_eq_vec!(
+        lines_vec[1].as_ref().unwrap().tokens,
+        vec![
+            Token::Name(String::from("name")),
+        ]
+    );
+    let input = "  list=name#comment\n   name";
     let lines_vec = lines(input.as_bytes()).collect::<Vec<_>>();
     assert_eq!(lines_vec[0].as_ref().unwrap().indentation, 2);
     assert_eq!(lines_vec[0].as_ref().unwrap().number, 1);
@@ -216,6 +224,14 @@ fn test_comment() {
         vec![
             Token::Name(String::from("list")),
             Token::Assignment,
+            Token::Name(String::from("name")),
+        ]
+    );
+    assert_eq!(lines_vec[1].as_ref().unwrap().indentation, 3);
+    assert_eq!(lines_vec[1].as_ref().unwrap().number, 2);
+    assert_eq_vec!(
+        lines_vec[1].as_ref().unwrap().tokens,
+        vec![
             Token::Name(String::from("name")),
         ]
     );

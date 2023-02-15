@@ -71,6 +71,8 @@ impl Line {
         while let Some(ch) = iter.next() {
             if ch.is_whitespace() {
                 continue;
+            } else if ch == '#' {
+                break;
             } else if ch.is_alphabetic() {
                 let mut string = String::new();
                 string.push(ch);
@@ -133,9 +135,6 @@ impl Line {
                 if matches!(iter.peek(), Some(x) if *x == '>') {
                     iter.next();
                     tokens.push(Token::Arrow);
-                } else if matches!(iter.peek(), Some(x) if *x == '-') {
-                    // comment
-                    break;
                 } else {
                     tokens.push(Token::Operation(Op::Minus));
                 }
