@@ -10,11 +10,11 @@
 			"name": "constant.language.lambdascript"
 		},
         {
-            "match": "\\b(cons|left|right|empty|read|print|import|once)\\b",
+            "match": "\\b(cons|left|right|empty|read|print)\\b",
 			"name": "support.function.lambdascript"
 		},
         {
-			"match": "\\b(if|else|then|impure|->)\\b",
+			"match": "\\b(if|else|then|impure|import|once|->)\\b",
             "name": "keyword.control.lambdascript"
         },
         {
@@ -33,10 +33,6 @@
 		{
 			"match": "[0-9]+",
 			"name": "constant.numeric.integer.lambdascript"
-		},
-        {
-			"match": "\\b(impure)\\b",
-			"name": "entity.name.tag.lambdascript"
 		},
         {
             "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\\s*\\(|\\s*=\\s*(?=impure|\\[|->))",

@@ -8,8 +8,9 @@ npm install -g @vscode/vsce@2.15.0
 vsce package
 ````
 ```
-code --install-extension lambda-script-syntax-highlighter-0.0.2.vsix
+code --install-extension lambda-script-syntax-highlighter-0.0.3.vsix
 ```
+or right-click -> "Install Extension VSIX" in the vscode explorer
 
 ## Release Notes
 
@@ -20,3 +21,7 @@ Initial version
 ### 0.0.2
 
 Better highlighting for functions
+
+### 0.0.3
+
+```import``` and ```once``` added to the keywords list

@@ -3,7 +3,7 @@
     "displayName": "Lambda script syntax highlighter",
     "description": "Syntax highlighting for lambda script",
     "publisher": "0",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "engines": {
         "vscode": "^1.75.0"
     },
