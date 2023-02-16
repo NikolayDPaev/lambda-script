@@ -28,7 +28,7 @@ prints to stdout
  - ```cargo run --release -- <filename>```
  - or as executable ```lambda-script <filename>```
 
-# Very short description
+# Short description
 
 ## Expressions
 **Expressions** are lazily evaluated by default. Expressions are:
@@ -69,7 +69,7 @@ import "example.ls"
 import once "lib.ls"
 ```
 ## Comments
-Symbols # marks beginning of a **comment**. Comments end at the end of the line.
+Symbol # marks beginning of a **comment**. Comments end at the end of the line.
 Example:
 ```
 # This is a comment
@@ -87,83 +87,103 @@ print(2 + 5) #This is another comment
 - **number** +/- **char** results in **number**
 - **char** +/- **number** results in **char**
 
-## Function Syntax
-```
-[<name>, <name>, ...] -> <expression>
+# Syntax
 
-[<name>, <name>, ...] ->
-    <assignment>
-    <assignment>
-    <assignment>
-    ...
-    <expression>
+## Scope
+One or more lines with the same indentation are called a scope. The scopes are two types Pure and Impure.
+ - **Pure** scope can have multiple assignments but has to end with a single expression. This will be the expression that the scope evaluates to.
+ - **Impure** scope can have multiple assignments and expressions in arbitrary order. If the scope ends with an expression, this will be the expression that the scope evaluates to, else the scope will evaluate to Nil.
 
-[<name>, <name>, ...] ->
-    <expression>
-
-impure -> <expression>
-
-impure ->
-    <assignment> or <expression>
-    <assignment> or <expression>
-    ...
-    <expression>
-
-impure [<name>, <name>, ...] -> 
-    <assignment> or <expression>
-    <assignment> or <expression>
-    ...
-    <expression>
-```
-
-## Assignments syntax
+The global scope - the lines without indentation - is impure
+## Assignments
 ```
 <name> = <expression>
 <name> = read
 ```
+## Expressions
 
-## If else expressions syntax
+### **Functions**
+Functions are values and their syntax is:
+ - optional modifier ```impure```
+ - optional arbitrary number of **parameters** - names in box brackets separated with commas ```[<name>, <name>, ...]```
+ - arrow ```->```
+ - - **expression** on the same line or 
+ - - **scope** starting on a new line with bigger indentation than the current line.
+
+The scope is either pure or impure according to the ```impure``` modifier.
+```
+-> <expression>
+
+-> 
+    <pure scope>
+
+[<name>, <name>, ...] -> <expression>
+
+[<name>, <name>, ...] ->
+    <pure scope>
+```
+```
+impure -> <expression>
+
+impure ->
+    <impure scope>
+
+impure [<name>, <name>, ...] -> <expression>
+
+impure [<name>, <name>, ...] ->
+    <impure scope>
+```
+Note that the **functions** are **values** and has to be assigned to a name in order to be used.
+
+### **If else expressions**
+If else expression syntax is: 
+ - ```if```
+ - **condition** expression
+ - ```then```
+ - **expression** or indented **scope** on the next line
+ - ```else```  - If the previous was scope must be on the next line with the same indentation as the ```if```
+ - **expression** or indented **scope** on the next line
+
+The type of scopes depend on the type of the outside scope.
 ```
 if <expression> then <expression> else <expression>
 
 if <expression> then <expression>
 else <expression>
 
+if <expression> then <expression>
+else
+    <scope>
+
 if <expression> then
-    <expression> 
+    <scope> 
 else <expression>
 
 if <expression> then
-    <expression> 
+    <scope> 
 else 
-    <expression>
-
-if <expression> then
-    <assignment>
-    <assignment>
-    ...
-    <expression> 
-else 
-    <assignment>
-    <assignment>
-    ...
-    <expression>
+    <scope>
 ```
 **Nesting** is possible:
 ```
 if <expression> then
-    <assignment>
-    <assignment>
-    ...
-    <expression>
+    <scope>
 else if <expression> then
-    <assignment>
-    <assignment>
-    ...
-    <expression>
+    <scope>
 else
-    <assignment>
-    <assignment>
-    ...
-    <expression>
+    <scope>
 ```
+
+### **Function calls**
+Function calls syntax consists of:
+ - **expression** that must (eagerly) evaluate to **function**
+ - arbitrary number of **arguments** - expressions
+```
+<expr>(<expr>, <expr>, ..., <expr>)
+```
+
+### **Literals**
+Supported literals are:
+ - Characters: ```'a'```, ```'4'```
+ - Strings: ```"apple"```, ```""```
+ - Numbers: ```1234``` or ```12.34```
