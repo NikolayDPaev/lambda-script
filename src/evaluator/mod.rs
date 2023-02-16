@@ -154,8 +154,7 @@ where
                 // force eval the assignments and the expressions
                 // eval the read calls
                 let mut assignments_map = outside_assignments.clone();
-                let mut return_expr = Rc::new(Expression::Value(Value::Nil));
-
+                let mut return_expr = Value::Nil;
                 for line in lines {
                     match line {
                         ImpureLine::Assignment(name, expr) => {
@@ -170,17 +169,18 @@ where
                             };
                             assignments_map =
                                 assignments_map.insert(name.to_string(), evaluated_expr);
+                            return_expr = Value::Nil;
                         }
                         ImpureLine::Expression(expr) => {
-                            return_expr = Rc::new(Expression::Value(self.force_eval(
+                            return_expr = self.force_eval(
                                 expr.clone(),
                                 assignments_map.clone(),
                                 false,
-                            )?));
+                            )?;
                         }
                     }
                 }
-                Ok(make_thunk!(return_expr.clone(), assignments_map, false))
+                Ok(make_thunk!(Rc::new(Expression::Value(return_expr.clone())), assignments_map, false))
             }
         }
     }
