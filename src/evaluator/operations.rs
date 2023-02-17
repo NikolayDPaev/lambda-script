@@ -86,15 +86,27 @@ fn eval_bool_op(op: BoolBinOp, left: &Value, right: &Value) -> Result<Value, Eva
     match op {
         BoolBinOp::And => match (left, right) {
             (Value::Boolean(a), Value::Boolean(b)) => return Ok(Value::Boolean(*a && *b)),
-            _ => Err(EvaluatorError::BooleanError { op, value_1: left.clone(), value_2: right.clone() }),
+            _ => Err(EvaluatorError::BooleanError {
+                op,
+                value_1: left.clone(),
+                value_2: right.clone(),
+            }),
         },
         BoolBinOp::Or => match (left, right) {
             (Value::Boolean(a), Value::Boolean(b)) => return Ok(Value::Boolean(*a || *b)),
-            _ => Err(EvaluatorError::BooleanError { op, value_1: left.clone(), value_2: right.clone() }),
+            _ => Err(EvaluatorError::BooleanError {
+                op,
+                value_1: left.clone(),
+                value_2: right.clone(),
+            }),
         },
         BoolBinOp::Xor => match (left, right) {
             (Value::Boolean(a), Value::Boolean(b)) => return Ok(Value::Boolean(*a ^ *b)),
-            _ => Err(EvaluatorError::BooleanError { op, value_1: left.clone(), value_2: right.clone() }),
+            _ => Err(EvaluatorError::BooleanError {
+                op,
+                value_1: left.clone(),
+                value_2: right.clone(),
+            }),
         },
     }
 }

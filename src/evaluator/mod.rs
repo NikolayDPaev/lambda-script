@@ -45,6 +45,7 @@ macro_rules! make_thunk {
     };
 }
 
+// returns the expression this name refers to
 fn try_resolve_name(
     expr: Rc<Expression>,
     env: HashTrieMap<String, Rc<Expression>>,
@@ -89,6 +90,7 @@ where
         }
     }
 
+    // entry point for the evaluator
     pub fn eval_outside_scope(&mut self, scope: &Scope) -> Result<Value, EvaluatorError> {
         let mut expression = self.eval_scope(scope, HashTrieMap::new())?;
         loop {
@@ -99,7 +101,8 @@ where
         }
     }
 
-    // Evaluates the expression to a value and if it is a thunk, memoizes the result
+    // Calls eval_expression on the expression in a loop until it is a value
+    // if the expression is a thunk, memoizes the result
     fn force_eval(
         &mut self,
         expr: Rc<Expression>,
@@ -123,6 +126,7 @@ where
         }
     }
 
+    // reads a line from stdin and returns the string
     pub fn force_read(&mut self) -> Rc<Expression> {
         let mut string = String::new();
         self.input.read_line(&mut string).unwrap();
@@ -135,6 +139,8 @@ where
         Rc::new(Expression::Value(crate::parser::parse_string(&string)))
     }
 
+    // evaluates the scope
+    // if it is impure, evaluates all expressions and assignments in order
     fn eval_scope(
         &mut self,
         scope: &Scope,
@@ -172,19 +178,23 @@ where
                             return_expr = Value::Nil;
                         }
                         ImpureLine::Expression(expr) => {
-                            return_expr = self.force_eval(
-                                expr.clone(),
-                                assignments_map.clone(),
-                                false,
-                            )?;
+                            return_expr =
+                                self.force_eval(expr.clone(), assignments_map.clone(), false)?;
                         }
                     }
                 }
-                Ok(make_thunk!(Rc::new(Expression::Value(return_expr.clone())), assignments_map, false))
+                Ok(make_thunk!(
+                    Rc::new(Expression::Value(return_expr.clone())),
+                    assignments_map,
+                    false
+                ))
             }
         }
     }
 
+    // Makes one lazy step in evaluation of the expression
+    // returns new expression
+    // similar to beta reduction with normal reduction strategy
     fn eval_expression(
         &mut self,
         expr: Rc<Expression>,
@@ -211,9 +221,10 @@ where
                     return Ok(expression.clone());
                 }
                 let result = self.eval_expression(inside_expr.clone(), env.clone(), *pure)?;
-                
+
                 // super important for the full memoization
-                self.thunk_memoization_map.insert(ByThinAddress(expr), result.clone());
+                self.thunk_memoization_map
+                    .insert(ByThinAddress(expr), result.clone());
                 result
             }
             Expression::Name(name) => {

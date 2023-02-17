@@ -16,6 +16,8 @@ use crate::lexer::*;
 use crate::parser::enums::*;
 use crate::parser::errors::*;
 
+const OUTSIDE_INDENTATION: i32 = -1;
+
 macro_rules! new_binary_operation {
     ($op:expr, $expr_1:expr, $expr_2:expr) => {
         Expression::BinaryOperation($op, Rc::new($expr_1), Rc::new($expr_2))
@@ -60,11 +62,14 @@ impl Parser {
         }
     }
 
+    // entry point for the parser
     pub fn parse_outside_scope(&mut self) -> Result<Scope, ParserError> {
-        self.parse_scope(-1, false, List::new().push_front(self.file_path.clone()))
+        self.parse_scope(OUTSIDE_INDENTATION, false, List::new().push_front(self.file_path.clone()))
     }
 
-    fn add_imported(
+    // checks whether the path is already imported
+    // if it is not imported, adds it to the list
+    fn check_imported_else_add(
         &mut self,
         path: PathBuf,
         imported: List<PathBuf>,
@@ -87,6 +92,7 @@ impl Parser {
         }
     }
 
+    // returns error with the specified error kind
     fn produce_error(&self, kind: ParserErrorKind, line: u32) -> ParserError {
         ParserError {
             kind,
@@ -124,8 +130,10 @@ impl Parser {
             ));
         }
 
-        self.handle_scope_line(&line, &mut lines, scope_indentation, pure, imported.clone())?;
+        // parse the first line
+        self.mutate_lines_vec(&line, &mut lines, scope_indentation, pure, imported.clone())?;
 
+        // read next lines
         while let Some(line_result) = self.next_lines.peek() {
             let next_line = line_result.as_ref().map_err(|_| ParserError {
                 kind: ParserErrorKind::PeekError,
@@ -157,7 +165,8 @@ impl Parser {
                     line: last_line_number,
                 })?;
 
-                self.handle_scope_line(
+                // parse line
+                self.mutate_lines_vec(
                     &line,
                     &mut lines,
                     scope_indentation,
@@ -216,8 +225,9 @@ impl Parser {
         }
     }
 
-    // mutates the lines vectors of the scope
-    fn handle_scope_line(
+    // Parses the line as an expression or assignment and
+    // mutates the lines vector of the scope
+    fn mutate_lines_vec(
         &mut self,
         line: &Line,
         lines: &mut Vec<FunctionLine>,
@@ -243,7 +253,7 @@ impl Parser {
                 };
                 let import_path_str = import_path.to_string_lossy().to_string();
                 let (already_imported, new_imported) =
-                    self.add_imported(import_path.clone(), imported, line.number)?;
+                    self.check_imported_else_add(import_path.clone(), imported, line.number)?;
 
                 if !(once && already_imported) {
                     let file = File::open(import_path.clone()).map_err(|err| {
@@ -318,6 +328,8 @@ impl Parser {
         }
     }
 
+    // parses single expression
+    // the expression can be on multiple lines
     fn parse_expression(
         &mut self,
         tokens: &mut Peekable<Iter<Token>>,
@@ -424,6 +436,7 @@ impl Parser {
                 );
 
                 let scope;
+                // check if the return expression is on the same line
                 if let Some(_) = tokens.peek() {
                     let expr = self.parse_expression(
                         tokens,
@@ -442,6 +455,7 @@ impl Parser {
             }
             Token::Arrow => {
                 let scope;
+                // check if the return expression is on the same line
                 if let Some(_) = tokens.peek() {
                     let expr = self.parse_expression(
                         tokens,
@@ -468,6 +482,7 @@ impl Parser {
                     self.produce_error(ParserErrorKind::ArrowExpected, line_num)
                 );
                 let scope;
+                // check if the return expression is on the same line
                 if let Some(_) = tokens.peek() {
                     let expr = self.parse_expression(
                         tokens,
@@ -500,7 +515,7 @@ impl Parser {
                 );
                 let then_scope;
                 let else_scope;
-                // check for then_expression on the same line
+                // check for 'then expression' on the same line
                 if let Some(_) = tokens.peek() {
                     let expr = self.parse_expression(
                         tokens,
@@ -510,7 +525,7 @@ impl Parser {
                         imported.clone(),
                     )?;
                     then_scope = new_scope_with_single_expr(expr, pure);
-                    // if yes, check for else_expression on the same line
+                    // if yes, check for 'else expression' on the same line and return
                     if let Some(_) = tokens.peek() {
                         assert_next_token!(
                             tokens,
@@ -520,8 +535,7 @@ impl Parser {
                         let expr =
                             self.parse_expression(tokens, line_num, indentation, pure, imported)?;
                         else_scope = new_scope_with_single_expr(expr, pure);
-
-                        // if both - return
+                        
                         return Ok(Expression::If {
                             condition,
                             then_scope,
@@ -529,11 +543,10 @@ impl Parser {
                         });
                     }
                 } else {
-                    // if not on the same line, parse scope
+                    // if 'then expression' is not on the same line, parse scope
                     then_scope =
                         Box::new(self.parse_scope(indentation.into(), pure, imported.clone())?);
                 }
-                // if then_expression is not on the same line and else in not also
                 // take next line and scan it for else
                 let next_line = self
                     .next_lines
@@ -557,7 +570,7 @@ impl Parser {
                     self.produce_error(ParserErrorKind::ElseExpected, line_num)
                 );
 
-                // check if else_expression is on the same line
+                // check if 'else expression' is on the same line
                 let else_scope;
                 if let Some(_) = next_line_tokens.peek() {
                     let expr = self.parse_expression(
@@ -569,6 +582,7 @@ impl Parser {
                     )?;
                     else_scope = new_scope_with_single_expr(expr, pure);
                 } else {
+                    // if not on the same line then parse scope
                     else_scope =
                         Box::new(self.parse_scope(indentation.into(), pure, imported.clone())?);
                 }
@@ -599,6 +613,7 @@ impl Parser {
             }
         };
 
+        // check if the next token is operator or the parsed expression is called as a function
         match tokens.peek() {
             Some(Token::Operation(op)) => {
                 tokens.next().unwrap();
@@ -782,6 +797,7 @@ fn parse_binary_operation(
     })
 }
 
+// represents string as list of characters
 pub fn parse_string(string: &str) -> Value {
     string.chars().rev().fold(Value::Nil, |acc, x| {
         Value::Tuple(Box::new(Value::Char(x)), Box::new(acc))
@@ -802,6 +818,7 @@ fn parse_number(string: &str, line_num: u32, filename: &str) -> Result<Expressio
     }
 }
 
+// parses arbitrary number of parameters, ending in right box bracket
 fn parse_name_list(
     tokens: &mut Peekable<Iter<Token>>,
     line_num: u32,

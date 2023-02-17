@@ -5,13 +5,6 @@ mod tests;
 use enums::*;
 use std::io::{BufRead, BufReader, Read};
 
-#[derive(Debug)]
-pub struct Line {
-    pub number: u32,
-    pub indentation: u16,
-    pub tokens: Vec<Token>,
-}
-
 macro_rules! read_while_alphanumeric_into {
     ($iter:expr, $string:expr) => {
         while let Some(ch) = $iter.peek() {
@@ -47,6 +40,13 @@ macro_rules! read_until_single_quotes_into {
             }
         }
     };
+}
+
+#[derive(Debug)]
+pub struct Line {
+    pub number: u32,
+    pub indentation: u16,
+    pub tokens: Vec<Token>,
 }
 
 impl Line {

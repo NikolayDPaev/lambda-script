@@ -20,6 +20,66 @@ pub enum Scope {
     },
 }
 
+#[derive(Educe)]
+#[educe(Debug)]
+#[derive(PartialEq, Clone)]
+pub enum Expression {
+    Value(Value),
+    Name(String),
+    Thunk(
+        Rc<Expression>,
+        #[educe(Debug(method = "fmt"))] HashTrieMap<String, Rc<Expression>>,
+        #[educe(Debug(ignore))] bool,
+    ),
+    FunctionCall {
+        name: Rc<Expression>,
+        args: Vec<Rc<Expression>>,
+    },
+    ReadCall,
+    PrintCall(Rc<Expression>),
+    Cons(Rc<Expression>, Rc<Expression>),
+    Left(Rc<Expression>),
+    Right(Rc<Expression>),
+    Empty(Rc<Expression>),
+    UnaryOperation(UnaryOp, Rc<Expression>),
+    BinaryOperation(BinaryOp, Rc<Expression>, Rc<Expression>),
+    If {
+        condition: Rc<Expression>,
+        then_scope: Box<Scope>,
+        else_scope: Box<Scope>,
+    },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Value {
+    Boolean(bool),
+    Nil,
+    Number(Number),
+    Char(char),
+    Tuple(Box<Value>, Box<Value>),
+    Function {
+        params: Vec<String>,
+        scope: Box<Scope>,
+    },
+}
+
+// for debugging of hashTrieMap
+fn fmt(tree: &HashTrieMap<String, Rc<Expression>>, f: &mut Formatter) -> fmt::Result {
+    write!(
+        f,
+        "{:?}",
+        tree.iter()
+            .filter(|(_, expr)| {
+                match expr.as_ref() {
+                    Expression::Value(Value::Function { .. }) => false,
+                    Expression::Value(_) => true,
+                    _ => false,
+                }
+            })
+            .collect::<Vec<_>>()
+    )
+}
+
 #[derive(Debug, Clone)]
 pub enum Number {
     Float(f64),
@@ -61,18 +121,7 @@ impl PartialEq for Number {
 
 impl Eq for Number {}
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Value {
-    Boolean(bool),
-    Nil,
-    Number(Number),
-    Char(char),
-    Tuple(Box<Value>, Box<Value>),
-    Function {
-        params: Vec<String>,
-        scope: Box<Scope>,
-    },
-}
+
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BoolBinOp {
@@ -113,51 +162,4 @@ pub enum BinaryOp {
 pub enum UnaryOp {
     Negation,
     Minus,
-}
-
-// for debugging of hashTrieMap
-fn fmt(tree: &HashTrieMap<String, Rc<Expression>>, f: &mut Formatter) -> fmt::Result {
-    write!(
-        f,
-        "{:?}",
-        tree.iter()
-            .filter(|(_, expr)| {
-                match expr.as_ref() {
-                    Expression::Value(Value::Function { .. }) => false,
-                    Expression::Value(_) => true,
-                    _ => false,
-                }
-            })
-            .collect::<Vec<_>>()
-    )
-}
-
-#[derive(Educe)]
-#[educe(Debug)]
-#[derive(PartialEq, Clone)]
-pub enum Expression {
-    Value(Value),
-    Name(String),
-    Thunk(
-        Rc<Expression>,
-        #[educe(Debug(method = "fmt"))] HashTrieMap<String, Rc<Expression>>,
-        #[educe(Debug(ignore))] bool,
-    ),
-    FunctionCall {
-        name: Rc<Expression>,
-        args: Vec<Rc<Expression>>,
-    },
-    ReadCall,
-    PrintCall(Rc<Expression>),
-    Cons(Rc<Expression>, Rc<Expression>),
-    Left(Rc<Expression>),
-    Right(Rc<Expression>),
-    Empty(Rc<Expression>),
-    UnaryOperation(UnaryOp, Rc<Expression>),
-    BinaryOperation(BinaryOp, Rc<Expression>, Rc<Expression>),
-    If {
-        condition: Rc<Expression>,
-        then_scope: Box<Scope>,
-        else_scope: Box<Scope>,
-    },
 }

@@ -211,9 +211,7 @@ fn test_comment() {
     assert_eq!(lines_vec[1].as_ref().unwrap().number, 2);
     assert_eq_vec!(
         lines_vec[1].as_ref().unwrap().tokens,
-        vec![
-            Token::Name(String::from("name")),
-        ]
+        vec![Token::Name(String::from("name")),]
     );
     let input = "  list=name#comment\n   name";
     let lines_vec = lines(input.as_bytes()).collect::<Vec<_>>();
@@ -231,8 +229,6 @@ fn test_comment() {
     assert_eq!(lines_vec[1].as_ref().unwrap().number, 2);
     assert_eq_vec!(
         lines_vec[1].as_ref().unwrap().tokens,
-        vec![
-            Token::Name(String::from("name")),
-        ]
+        vec![Token::Name(String::from("name")),]
     );
 }
