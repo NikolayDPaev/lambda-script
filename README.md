@@ -60,7 +60,7 @@ Built-in functions:
  - ```empty(<expr>)``` checks if expression is cons or nil
 
 ## Imports
-**Imports** are also available. If the import statement is in the scope of pure function, then The imported file outside scope should consist only of assignments. If the import statement is in impure scope, then there are no restrictions.
+**Imports** are also available. If the import statement is in the scope of pure function, then the imported file outside scope should consist only of assignments. If the import statement is in impure scope, then there are no restrictions.
  - ``` import once ``` imports the file only if it has not been imported in the current scope. It prevents circular imports.
 ```
 import "example.ls"
@@ -91,7 +91,7 @@ print(2 + 5) #This is another comment
 
 ## Scope
 One or more lines with the same indentation are called a scope. The scopes are two types Pure and Impure.
- - **Pure** scope can have multiple assignments but has to end with a single expression. This will be the expression that the scope evaluates to.
+ - **Pure** scope can have multiple assignments but must end with a single expression. This will be the expression that the scope evaluates to.
  - **Impure** scope can have multiple assignments and expressions in arbitrary order. If the scope ends with an expression, this will be the expression that the scope evaluates to, else the scope will evaluate to Nil.
 
 The global scope - the lines without indentation - is impure
@@ -107,8 +107,9 @@ Functions are values and their syntax is:
  - optional modifier ```impure```
  - optional arbitrary number of **parameters** - names in box brackets separated with commas ```[<name>, <name>, ...]```
  - arrow ```->```
- - - **expression** on the same line or 
- - - **scope** starting on a new line with bigger indentation than the current line.
+   - **expression** on the same line
+    **or** 
+   - **scope** starting on a new line with bigger indentation than the current line.
 
 The scope is either pure or impure according to the ```impure``` modifier.
 ```
@@ -133,7 +134,7 @@ impure [<name>, <name>, ...] -> <expression>
 impure [<name>, <name>, ...] ->
     <impure scope>
 ```
-Note that the **functions** are **values** and has to be assigned to a name in order to be used.
+Note that the **functions** are **values** and usually are assigned to a name
 
 ### **If else expressions**
 If else expression syntax is: 
@@ -141,7 +142,7 @@ If else expression syntax is:
  - **condition** expression
  - ```then```
  - **expression** or indented **scope** on the next line
- - ```else```  - If the previous was scope must be on the next line with the same indentation as the ```if```
+ - ```else```  - If the previous was scope, ```else``` must be on the next line with the same indentation as the ```if```
  - **expression** or indented **scope** on the next line
 
 The type of scopes depend on the type of the outside scope.
@@ -175,7 +176,7 @@ else
 ```
 
 ### **Function calls**
-Function calls syntax consists of:
+Function call syntax consists of:
  - **expression** that must (eagerly) evaluate to **function**
  - arbitrary number of **arguments** - expressions
 ```
