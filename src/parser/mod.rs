@@ -44,7 +44,6 @@ enum ParsedLine {
     Expression(Expression),
     Assignment(String, Expression),
     Import { filename: String, once: bool },
-    Empty,
 }
 
 pub struct Parser {
@@ -280,12 +279,11 @@ impl Parser {
                     };
                 }
             }
-            ParsedLine::Empty => (),
         };
         Ok(())
     }
 
-    // parses the line and returns expression, assignment, import or empty line
+    // parses the line and returns expression, assignment or import
     fn parse_line(
         &mut self,
         line: &Line,
@@ -294,7 +292,6 @@ impl Parser {
         imported: List<PathBuf>,
     ) -> Result<ParsedLine, ParserError> {
         match line.tokens.as_slice() {
-            [] => Ok(ParsedLine::Empty),
             [Token::Import, Token::Str(string)] => Ok(ParsedLine::Import {
                 filename: string.clone(),
                 once: false,

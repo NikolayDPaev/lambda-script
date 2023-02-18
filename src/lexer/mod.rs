@@ -210,7 +210,12 @@ pub fn lines<T: Read + 'static>(reader: T) -> LinesIterator {
     Box::new(
         buf_reader
             .lines()
-            .zip(std::ops::RangeFrom { start: 1 })
-            .map(|(result, line_num)| result.map(|line| Line::new(line, line_num as u32))),
+            .enumerate()
+            .filter_map(|(line_num, result)| {
+                match result.map(|line| Line::new(line, line_num as u32 + 1)) {
+                    Ok(line) if line.tokens.is_empty() => None,
+                    line_res @ _ => Some(line_res)
+                }
+            }),
     )
 }

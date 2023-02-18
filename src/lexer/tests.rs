@@ -203,14 +203,11 @@ fn test_cons() {
 fn test_comment() {
     let input = "# just comment list=name\nname";
     let lines_vec = lines(input.as_bytes()).collect::<Vec<_>>();
-    assert_eq!(lines_vec[0].as_ref().unwrap().indentation, 0);
-    assert_eq!(lines_vec[0].as_ref().unwrap().number, 1);
-    assert!(lines_vec[0].as_ref().unwrap().tokens.len() == 0);
 
-    assert_eq!(lines_vec[1].as_ref().unwrap().indentation, 0);
-    assert_eq!(lines_vec[1].as_ref().unwrap().number, 2);
+    assert_eq!(lines_vec[0].as_ref().unwrap().indentation, 0);
+    assert_eq!(lines_vec[0].as_ref().unwrap().number, 2);
     assert_eq_vec!(
-        lines_vec[1].as_ref().unwrap().tokens,
+        lines_vec[0].as_ref().unwrap().tokens,
         vec![Token::Name(String::from("name")),]
     );
     let input = "  list=name#comment\n   name";
