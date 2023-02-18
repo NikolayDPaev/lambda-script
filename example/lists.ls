@@ -52,15 +52,15 @@ filter = [predicate, list] ->
         else
             filter(predicate, right(list))
 
-foldRight = [list, f, init] ->
+foldRight = [f, init, list] ->
     if empty(list) then init
     else 
-        f(left(list), foldRight(right(list), f, init))
+        f(left(list), foldRight(f, init, right(list)))
 
-foldLeft = [list, f, init] ->
+foldLeft = [f, init, list] ->
     if empty(list) then init
     else
-        foldLeft(right(list), f, f(left(list), init))
+        foldLeft(f, f(left(list), init), right(list))
 
 cat = [xs, ys] ->
     if empty(xs) then ys
