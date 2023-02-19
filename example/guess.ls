@@ -1,4 +1,4 @@
-import once "numbers.ls"
+import once "numbers.ls" # parseNumber
 
 actual = 12
 guess = impure ->
@@ -15,10 +15,3 @@ guess = impure ->
 
 print("Guess number: ")
 guess()
-
-# Example of cyclic import detection
-# if true then
-#     # test has been imported in the outside scope
-#     # so it should not be imported again
-#     import once "test.ls" # should not execute
-# else nil

@@ -65,3 +65,24 @@ foldLeft = [f, init, list] ->
 cat = [xs, ys] ->
     if empty(xs) then ys
     else cons(left(xs), cat(right(xs), ys))
+
+printlnList = impure [xs] ->
+    helper = impure [xs] ->
+        if empty(xs) then
+            println(']')
+        else if empty(right(xs)) then
+            print(left(xs))
+            println(']')
+        else
+            print(left(xs))
+            print(", ")
+            helper(right(xs))
+    print('[')
+    helper(xs)
+
+forEach = impure [f, xs] ->
+    if empty(xs) then
+        nil
+    else
+        f(left(xs))
+        forEach(f, right(xs))

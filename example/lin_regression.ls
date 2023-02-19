@@ -1,5 +1,5 @@
-import once "numbers.ls"
-import once "lists.ls"
+import once "numbers.ls" # parseNumber
+import once "lists.ls" # length, map, foldLeft
 
 linRegression = [points] ->
     n = length(points)
@@ -19,6 +19,7 @@ linRegression = [points] ->
     cons(a, b)
 
 input = impure ->
+    print("Enter number of points: ")
     n_str = read
     n = parseNumber(n_str)
 

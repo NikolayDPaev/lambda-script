@@ -1,4 +1,4 @@
-import once "lists.ls"
+import once "lists.ls" # nth, printlnList, take
 
 # binary tree constructor
 nodeCons = [data, leftChild, rightChild] ->
@@ -50,4 +50,4 @@ makeIntoTree = [list] ->
         split = splitList(right(list))
         nodeCons(left(list), makeIntoTree(left(split)), makeIntoTree(right(split)))
 
-println(take(10, bfsList(makeIntoTree(genNaturals()))))
+printlnList(take(10, bfsList(makeIntoTree(genNaturals()))))
