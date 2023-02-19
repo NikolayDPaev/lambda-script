@@ -39,13 +39,6 @@ pub enum FunctionLine {
     Assignment(String, Rc<Expression>),
 }
 
-#[derive(Debug)]
-enum ParsedLine {
-    Expression(Expression),
-    Assignment(String, Expression),
-    Import { filename: String, once: bool },
-}
-
 pub struct Parser {
     next_lines: Peekable<LinesIterator>,
     filename: String,
@@ -130,7 +123,7 @@ impl Parser {
         }
 
         // parse the first line
-        self.mutate_lines_vec(&line, &mut lines, scope_indentation, pure, imported.clone())?;
+        self.parse_line(&line, &mut lines, scope_indentation, pure, imported.clone())?;
 
         // read next lines
         while let Some(line_result) = self.next_lines.peek() {
@@ -165,7 +158,7 @@ impl Parser {
                 })?;
 
                 // parse line
-                self.mutate_lines_vec(
+                self.parse_line(
                     &line,
                     &mut lines,
                     scope_indentation,
@@ -224,9 +217,44 @@ impl Parser {
         }
     }
 
-    // Parses the line as an expression or assignment and
-    // mutates the lines vector of the scope
-    fn mutate_lines_vec(
+    fn add_import(&mut self, imported: List<PathBuf>, lines: &mut Vec<FunctionLine>, line_num: u32, import_filename: &str, once: bool) -> Result<(), ParserError> {
+        let import_path = match PathBuf::from(self.filename.clone()).parent() {
+            Some(parent) => parent.join(import_filename),
+            None => PathBuf::from(import_filename),
+        };
+        let import_path_str = import_path.to_string_lossy().to_string();
+        let (already_imported, new_imported) =
+            self.check_imported_else_add(import_path.clone(), imported, line_num)?;
+
+        if !(once && already_imported) {
+            let file = File::open(import_path.clone()).map_err(|err| {
+                self.produce_error(
+                    ParserErrorKind::CannotImportFile {
+                        import_filename: import_path_str.clone(),
+                        error_message: err.to_string(),
+                    },
+                    line_num,
+                )
+            })?;
+
+            let scope = Parser::new(crate::lexer::lines(file), import_path).parse_scope(
+                -1,
+                false,
+                new_imported,
+            )?;
+
+            match scope {
+                Scope::Impure {
+                    lines: mut import_lines,
+                } => lines.append(&mut import_lines),
+                Scope::Pure { .. } => panic!("Unexpected Pure scope in import"),
+            };
+        }
+        Ok(())
+    }
+
+    // parses the line and mutates the lines vector
+    fn parse_line(
         &mut self,
         line: &Line,
         lines: &mut Vec<FunctionLine>,
@@ -234,72 +262,13 @@ impl Parser {
         pure: bool,
         imported: List<PathBuf>,
     ) -> Result<(), ParserError> {
-        let parsed = self.parse_line(line, indentation, pure, imported.clone())?;
-        match parsed {
-            ParsedLine::Expression(exp) => {
-                lines.push(FunctionLine::Expression(Rc::new(exp)));
-            }
-            ParsedLine::Assignment(string, exp) => {
-                lines.push(FunctionLine::Assignment(string, Rc::new(exp)));
-            }
-            ParsedLine::Import {
-                filename: import_filename,
-                once,
-            } => {
-                let import_path = match PathBuf::from(self.filename.clone()).parent() {
-                    Some(parent) => parent.join(import_filename),
-                    None => PathBuf::from(import_filename),
-                };
-                let import_path_str = import_path.to_string_lossy().to_string();
-                let (already_imported, new_imported) =
-                    self.check_imported_else_add(import_path.clone(), imported, line.number)?;
-
-                if !(once && already_imported) {
-                    let file = File::open(import_path.clone()).map_err(|err| {
-                        self.produce_error(
-                            ParserErrorKind::CannotImportFile {
-                                import_filename: import_path_str.clone(),
-                                error_message: err.to_string(),
-                            },
-                            line.number,
-                        )
-                    })?;
-
-                    let scope = Parser::new(crate::lexer::lines(file), import_path).parse_scope(
-                        -1,
-                        false,
-                        new_imported,
-                    )?;
-
-                    match scope {
-                        Scope::Impure {
-                            lines: mut import_lines,
-                        } => lines.append(&mut import_lines),
-                        Scope::Pure { .. } => panic!("Unexpected Pure scope in import"),
-                    };
-                }
-            }
-        };
-        Ok(())
-    }
-
-    // parses the line and returns expression, assignment or import
-    fn parse_line(
-        &mut self,
-        line: &Line,
-        indentation: u16,
-        pure: bool,
-        imported: List<PathBuf>,
-    ) -> Result<ParsedLine, ParserError> {
         match line.tokens.as_slice() {
-            [Token::Import, Token::Str(string)] => Ok(ParsedLine::Import {
-                filename: string.clone(),
-                once: false,
-            }),
-            [Token::Import, Token::Once, Token::Str(string)] => Ok(ParsedLine::Import {
-                filename: string.clone(),
-                once: true,
-            }),
+            [Token::Import, Token::Str(string)] => {
+                self.add_import(imported, lines, line.number, string, false)
+            }
+            [Token::Import, Token::Once, Token::Str(string)] => {
+                self.add_import(imported, lines, line.number, string, true)
+            }
             [Token::Import, ..] => {
                 Err(self.produce_error(ParserErrorKind::FilenameStringExpected, line.number))
             }
@@ -307,7 +276,8 @@ impl Parser {
                 let mut iter = rest.iter().peekable();
                 let expression =
                     self.parse_expression(&mut iter, line.number, indentation, pure, imported)?;
-                Ok(ParsedLine::Assignment(string.clone(), expression))
+                lines.push(FunctionLine::Assignment(string.to_owned(), Rc::new(expression)));
+                Ok(())
             }
             [_, Token::Assignment, ..] => Err(self.produce_error(
                 ParserErrorKind::AssignmentError {
@@ -319,8 +289,9 @@ impl Parser {
             )),
             [exp @ ..] => {
                 let mut iter = exp.iter().peekable();
-                self.parse_expression(&mut iter, line.number, indentation, pure, imported)
-                    .map(|exp| ParsedLine::Expression(exp))
+                let expression = self.parse_expression(&mut iter, line.number, indentation, pure, imported)?;
+                lines.push(FunctionLine::Expression(Rc::new(expression)));
+                Ok(())
             }
         }
     }
