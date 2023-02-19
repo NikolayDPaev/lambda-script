@@ -10,7 +10,7 @@
 			"name": "constant.language.lambdascript"
 		},
         {
-            "match": "\\b(cons|left|right|empty|read|print)\\b",
+            "match": "\\b(cons|left|right|empty|read|print|println)\\b",
 			"name": "support.function.lambdascript"
 		},
         {
@@ -49,12 +49,24 @@
                 {
                     "name": "string.quoted.double.lambdascript",
 			        "begin": "\"",
-			        "end": "\""
+			        "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.lambdascript",
+                            "match": "\\\\n"
+                        }
+                    ]
                 },
                 {
                     "name": "string.quoted.single.lambdascript",
 			        "begin": "'",
-			        "end": "'"
+			        "end": "'",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.lambdascript",
+                            "match": "\\\\n"
+                        }
+                    ]
                 }
             ]
 		}

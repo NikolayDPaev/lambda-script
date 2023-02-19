@@ -217,6 +217,7 @@ impl Parser {
         }
     }
 
+    // mutates the lines vector, adding the assignments and expressions of the import scope
     fn add_import(&mut self, imported: List<PathBuf>, lines: &mut Vec<FunctionLine>, line_num: u32, import_filename: &str, once: bool) -> Result<(), ParserError> {
         let import_path = match PathBuf::from(self.filename.clone()).parent() {
             Some(parent) => parent.join(import_filename),
@@ -382,13 +383,22 @@ impl Parser {
                 imported.clone(),
             )?)),
             Token::Print => {
-                Expression::PrintCall(Rc::new(self.parse_built_in_unary_function_call(
+                Expression::PrintCall{expr: Rc::new(self.parse_built_in_unary_function_call(
                     tokens,
                     line_num,
                     indentation,
                     pure,
                     imported.clone(),
-                )?))
+                )?), newline: false}
+            }
+            Token::Println => {
+                Expression::PrintCall{expr: Rc::new(self.parse_built_in_unary_function_call(
+                    tokens,
+                    line_num,
+                    indentation,
+                    pure,
+                    imported.clone(),
+                )?), newline: true}
             }
             Token::Read => Expression::ReadCall,
             Token::Impure => {

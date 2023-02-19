@@ -37,7 +37,9 @@ input = impure ->
     list = readList(n)
     result = linRegression(list)
 
-    print(cons("a", left(result)))
-    print(cons("b", right(result)))
+    print("a = ")
+    println(left(result))
+    print("b = ")
+    println(right(result))
     
 input()

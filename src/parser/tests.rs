@@ -142,7 +142,17 @@ fn test_builtin_functions() {
             Token::Name(String::from("foo")),
             Token::RightBracket,
         ],
-        Expression::PrintCall(Rc::new(Expression::Name(String::from("foo")))),
+        Expression::PrintCall{expr: Rc::new(Expression::Name(String::from("foo"))), newline: false},
+    );
+
+    test_one_line_expression(
+        vec![
+            Token::Println,
+            Token::LeftBracket,
+            Token::Name(String::from("foo")),
+            Token::RightBracket,
+        ],
+        Expression::PrintCall{expr: Rc::new(Expression::Name(String::from("foo"))), newline: true},
     );
 
     test_one_line_expression(

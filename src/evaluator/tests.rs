@@ -347,15 +347,17 @@ fn test_evaluate_read_print_function() {
                                     String::from("b"),
                                     Rc::new(Expression::ReadCall)
                                 ),
-                                ImpureLine::Expression(Rc::new(Expression::PrintCall(Rc::new(
-                                    Expression::Name(String::from("b"))
-                                )))),
-                                ImpureLine::Expression(Rc::new(Expression::PrintCall(Rc::new(
-                                    Expression::Cons(
+                                ImpureLine::Expression(Rc::new(Expression::PrintCall {
+                                    expr: Rc::new(Expression::Name(String::from("b"))),
+                                    newline: true
+                                })),
+                                ImpureLine::Expression(Rc::new(Expression::PrintCall {
+                                    expr: Rc::new(Expression::Cons(
                                         Rc::new(Expression::Value(Value::Char('a'))),
                                         Rc::new(Expression::Name(String::from("b")))
-                                    )
-                                ))))
+                                    )),
+                                    newline: false
+                                }))
                             ]
                         })
                     }))
@@ -368,6 +370,6 @@ fn test_evaluate_read_print_function() {
     std::mem::drop(output_stream);
     assert_eq!(
         String::from_utf8(output).unwrap(),
-        String::from("bcd\nabcd\n")
+        String::from("bcd\nabcd")
     );
 }

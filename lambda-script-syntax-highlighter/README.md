@@ -25,3 +25,7 @@ Better highlighting for functions
 ### 0.0.3
 
 ```import``` and ```once``` added to the keywords list
+
+### 0.0.4
+Added support for \n
+Added println as keyword

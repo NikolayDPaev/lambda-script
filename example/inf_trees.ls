@@ -50,4 +50,4 @@ makeIntoTree = [list] ->
         split = splitList(right(list))
         nodeCons(left(list), makeIntoTree(left(split)), makeIntoTree(right(split)))
 
-print(take(10, bfsList(makeIntoTree(genNaturals()))))
+println(take(10, bfsList(makeIntoTree(genNaturals()))))

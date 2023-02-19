@@ -3,14 +3,14 @@ import once "lists.ls"
 numberPrompt = impure ->
     # imports only in the current scope
     import once "numbers.ls"
-    print("How many fibs do you want?")
+    println("How many fibs do you want?")
     input = read
     parseNumber(input)
 
 num = numberPrompt()
 
 fibList = -> cons(0, cons(1, zipMap([x, y] -> x + y, zip(fibList(), right(fibList())))))
-print(take(num, fibList()))
+println(take(num, fibList()))
 
 allStrings = [n] ->
     if n == 1 then cons(cons(0, nil), cons(cons(1, nil), nil))
@@ -23,11 +23,11 @@ allStrings = [n] ->
 
 # has not been imported yet in this scope
 import once "numbers.ls"
-print("What k to use for all strings with length k?")
+println("What k to use for all strings with length k?")
 input = read
 num = parseNumber(input)
-print(allStrings(num))
+println(allStrings(num))
 
 import "guess.ls"
-print("One more game?")
+println("One more game?")
 import "guess.ls"

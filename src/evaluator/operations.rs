@@ -45,7 +45,7 @@ pub fn print<W: Write>(value: &Value, output: &mut BufWriter<W>) {
         Value::Nil => write!(output, "nil").unwrap(),
         Value::Number(Number::Float(f)) => write!(output, "{}", f).unwrap(),
         Value::Number(Number::Integer(i)) => write!(output, "{}", i).unwrap(),
-        Value::Char(char) => write!(output, "\'{}\'", char).unwrap(),
+        Value::Char(char) => write!(output, "{}", char).unwrap(),
         Value::Tuple(left, right) => {
             if let Some(string) = try_string(value) {
                 write!(output, "{}", string).unwrap();

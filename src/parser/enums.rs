@@ -36,7 +36,7 @@ pub enum Expression {
         args: Vec<Rc<Expression>>,
     },
     ReadCall,
-    PrintCall(Rc<Expression>),
+    PrintCall{expr: Rc<Expression>, newline: bool},
     Cons(Rc<Expression>, Rc<Expression>),
     Left(Rc<Expression>),
     Right(Rc<Expression>),

@@ -5,15 +5,15 @@ guess = impure ->
     input = read
     num = parseNumber(input)
     if actual == num then
-        print("Success")
+        println("Success")
     else if actual < num then
-        print("Lower")
+        println("Lower")
         guess()
     else 
-        print("Higher")
+        println("Higher")
         guess()
 
-print("Guess number:")
+print("Guess number: ")
 guess()
 
 # Example of cyclic import detection

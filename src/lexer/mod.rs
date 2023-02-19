@@ -23,6 +23,11 @@ macro_rules! read_until_quotes_into {
         while let Some(ch) = $iter.next() {
             if ch == '\"' {
                 break;
+            } else if ch == '\\' {
+                if let Some('n') = $iter.peek() {
+                    $iter.next();
+                    $string.push('\n');
+                }
             } else {
                 $string.push(ch);
             }
@@ -35,6 +40,11 @@ macro_rules! read_until_single_quotes_into {
         while let Some(ch) = $iter.next() {
             if ch == '\'' {
                 break;
+            } else if ch == '\\' {
+                if let Some('n') = $iter.peek() {
+                    $iter.next();
+                    $string.push('\n');
+                }
             } else {
                 $string.push(ch);
             }
@@ -107,6 +117,8 @@ impl Line {
                     tokens.push(Token::Read);
                 } else if string == "print" {
                     tokens.push(Token::Print);
+                } else if string == "println" {
+                    tokens.push(Token::Println);
                 } else {
                     tokens.push(Token::Name(string));
                 }

@@ -274,13 +274,15 @@ where
                 // Reads must have been evaluated in the evaluation of impure scope
                 return Err(EvaluatorError::UnexpectedRead());
             }
-            Expression::PrintCall(inside_expr) => {
+            Expression::PrintCall{expr: inside_expr, newline} => {
                 if pure {
                     return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
                 }
                 let value = self.force_eval(inside_expr.clone(), assignments, pure)?;
                 print(&value, &mut self.output);
-                writeln!(self.output).unwrap();
+                if *newline {
+                    writeln!(self.output).unwrap();
+                }
                 self.output.flush().unwrap();
 
                 Rc::new(Expression::Value(Value::Nil))

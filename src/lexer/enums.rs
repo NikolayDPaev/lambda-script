@@ -27,6 +27,7 @@ pub enum Token {
     Once,
     Read,
     Print,
+    Println
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
