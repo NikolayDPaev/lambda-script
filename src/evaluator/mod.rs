@@ -102,7 +102,8 @@ where
                 }
                 return Ok(value.clone());
             }
-            expression = self.eval_expression(expression, assignments.clone(), pure)?
+            expression = self.eval_expression(expression, assignments.clone(), pure)
+                .map_err(|error| EvaluatorError::ErrorWithInfo { expr: expr.clone(), error: Box::new(error) })?
         }
     }
 

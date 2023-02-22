@@ -161,3 +161,65 @@ pub enum UnaryOp {
     Negation,
     Minus,
 }
+
+pub fn display_value(value: &Value, names: &[String]) -> String {
+    match value {
+        Value::Boolean(boolean) => format!("{}", boolean),
+        Value::Nil => format!("nil"),
+        Value::Number(Number::Integer(i)) => format!("{}", i),
+        Value::Number(Number::Float(f)) => format!("{}", f),
+        Value::Char(c) => format!("'{}'", c),
+        Value::Tuple(v1, v2) => format!(
+            "({}, {})",
+            display_value(v1, names),
+            display_value(v2, names)
+        ),
+        Value::Function { params, scope: _ } => format!(
+            "function {:?}",
+            params
+                .into_iter()
+                .map(|ident| names[*ident as usize].to_owned())
+                .collect::<Vec<String>>()
+        ),
+    }
+}
+
+pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
+    match expr.as_ref() {
+        Expression::Value(value) => format!("Value({})", display_value(value, names)),
+        Expression::Ident(ident) => format!("{}", names[*ident as usize]),
+        Expression::Thunk(expr, env, _) => format!(
+            "Thunk({}, env: {:?})",
+            display_expr(expr.clone(), names),
+            env.iter()
+                .filter(|(_, expr)| {
+                    match expr.as_ref() {
+                        Expression::Value(Value::Function { .. }) => false,
+                        Expression::Value(_) => true,
+                        _ => false,
+                    }
+                })
+                .collect::<Vec<_>>()
+        ),
+        Expression::FunctionCall { expr, args } => format!(
+            "FunctionCall({}, {:?})",
+            display_expr(expr.clone(), names),
+            args.into_iter()
+                .map(|expr| display_expr(expr.clone(), names))
+                .collect::<Vec<String>>()
+        ),
+        Expression::ReadCall => format!("Read"),
+        Expression::PrintCall { expr, newline: _ } => format!("Print({})", display_expr(expr.clone(), names)),
+        Expression::Cons(expr1, expr2) => format!("Cons({}, {})", display_expr(expr1.clone(), names), display_expr(expr2.clone(), names)),
+        Expression::Left(expr) => format!("Left({})", display_expr(expr.clone(), names)),
+        Expression::Right(expr) => format!("Right({})", display_expr(expr.clone(), names)),
+        Expression::Empty(expr) => format!("Empty({})", display_expr(expr.clone(), names)),
+        Expression::UnaryOperation(op, expr) => format!("UnaryOperation({:?}, {})", op, display_expr(expr.clone(), names)),
+        Expression::BinaryOperation(op, expr1, expr2) => format!("BinaryOperation({:?}, {}, {})", op, display_expr(expr1.clone(), names), display_expr(expr2.clone(), names)),
+        Expression::If {
+            condition,
+            then_scope: _,
+            else_scope: _,
+        } => format!("If({})", display_expr(condition.clone(), names))
+    }
+}

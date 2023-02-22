@@ -1,10 +1,14 @@
 use std::rc::Rc;
 
-use crate::parser::enums::{ArithBinOp, BoolBinOp, CmpBinOp, Expression, Value};
+use crate::parser::enums::{ArithBinOp, BoolBinOp, CmpBinOp, Expression, Value, display_expr, display_value};
 
 #[derive(Debug)]
 pub enum EvaluatorError {
     //UnknownName(Rc<Expression>),
+    ErrorWithInfo{
+        expr: Rc<Expression>,
+        error: Box<EvaluatorError>,
+    },
     FunctionExpected(Rc<Expression>),
     ArgsAndParamsLengthsMismatch(Rc<Expression>),
     InvalidUnaryOperation {
@@ -31,54 +35,61 @@ pub enum EvaluatorError {
     },
 }
 
-pub fn process_evaluator_error(err: EvaluatorError) -> String {
-    let error = match err {
+fn format_error(err: EvaluatorError, names: &[String]) -> String {
+    match err {
         // EvaluatorError::UnknownName(expression) => {
         //     format!("Use of undeclared name in this scope:\n{:?}", expression)
         // }
-        EvaluatorError::FunctionExpected(expression) => {
-            format!("Expected function, actual expression is:\n{:?}", expression)
+        EvaluatorError::FunctionExpected(expr) => {
+            format!("Expected function, actual expression is:\n{}", display_expr(expr, names))
         }
-        EvaluatorError::ArgsAndParamsLengthsMismatch(expression) => format!(
-            "Wrong number of arguments provided to the functions:\n{:?}",
-            expression
+        EvaluatorError::ArgsAndParamsLengthsMismatch(expr) => format!(
+            "Wrong number of arguments provided to the functions:\n{}",
+            display_expr(expr, names)
         ),
         EvaluatorError::InvalidUnaryOperation { msg, expr } => {
-            format!("Invalid operation in the expression:\n{:?}\n{}", expr, msg)
+            format!("Invalid operation in the expression:\n{}\n\n{}", display_expr(expr, names), msg)
         }
         EvaluatorError::SideEffectInPureScope(expr) => {
-            format!("Expression produces side effect in pure scope:\n{:?}", expr)
+            format!("Expression produces side effect in pure scope:\n{}", display_expr(expr, names))
         }
         EvaluatorError::ConditionShouldEvaluateToBoolean(expr) => {
-            format!("Expression was expected to evaluate to boolean:\n{:?}", expr)
+            format!("Expression was expected to evaluate to boolean:\n{}", display_expr(expr, names))
         }
         EvaluatorError::ComparisonError {
             op,
             value_1,
             value_2,
         } => format!(
-            "{:?} and {:?} cannot be compared with '{:?}'",
-            value_1, value_2, op
+            "{} and {} cannot be compared with '{:?}'",
+            display_value(&value_1, names), display_value(&value_2, names), op
         ),
         EvaluatorError::ArithmeticError {
             op,
             value_1,
             value_2,
         } => format!(
-            "Operation '{:?}' cannot be applied to {:?} and {:?}",
-            op, value_1, value_2
+            "Operation '{:?}' cannot be applied to {} and {}",
+            op, display_value(&value_1, names), display_value(&value_2, names)
         ),
         EvaluatorError::BooleanError {
             op,
             value_1,
             value_2,
         } => format!(
-            "Operation '{:?}' cannot be applied to {:?} and {:?}",
-            op, value_1, value_2
+            "Operation '{:?}' cannot be applied to {} and {}",
+            op, display_value(&value_1, names), display_value(&value_2, names)
         ),
         EvaluatorError::UnexpectedRead() => format!(
             "Read call at invalid position. The only possible place for the read is as assignment expression in impure scope"
         ),
-    };
-    format!("Error: {}\n\nFor more info run with --debug.\n", error)
+        EvaluatorError::ErrorWithInfo { expr, error } => 
+        format!(
+            "While evaluating expression {}\n{}", display_expr(expr, names), format_error(*error, names) 
+        ),
+    }
+}
+
+pub fn process_evaluator_error(err: EvaluatorError, names: &[String]) -> String {
+    format!("Error:\n{}\n", format_error(err, names))
 }

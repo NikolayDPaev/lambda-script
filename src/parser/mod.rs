@@ -45,6 +45,7 @@ pub struct Parser {
     filename: String,
     file_path: PathBuf,
     next_ident: u32,
+    pub names: Vec<String>,
 }
 
 impl Parser {
@@ -54,6 +55,7 @@ impl Parser {
             filename: file_path.to_string_lossy().to_string(),
             file_path,
             next_ident: 0,
+            names: vec![]
         }
     }
 
@@ -279,12 +281,14 @@ impl Parser {
                 filename: import_path.to_string_lossy().to_string(),
                 file_path: import_path,
                 next_ident: self.next_ident,
+                names: vec![],
             };
             let (scope, map) = parser.parse_scope(-1, false, new_imported, HashTrieMap::new())?;
             ident_map = map.into_iter().fold(ident_map, |acc, (key, value)| {
                 acc.insert(key.to_string(), *value)
             });
             self.next_ident = parser.next_ident;
+            self.names.append(&mut parser.names);
 
             match scope {
                 Scope::Impure {
@@ -320,6 +324,7 @@ impl Parser {
             [Token::Name(string), Token::Assignment, rest @ ..] => {
                 let mut iter = rest.iter().peekable();
                 let ident = self.new_ident();
+                self.names.push(string.to_owned());
                 let new_map = ident_map.insert(string.to_string(), ident);
                 let expression = self.parse_expression(
                     &mut iter,
@@ -886,6 +891,7 @@ impl Parser {
                 Token::RightBoxBracket => return Ok((vec, ident_map)),
                 Token::Name(string) => {
                     let ident = self.new_ident();
+                    self.names.push(string.to_owned());
                     ident_map = ident_map.insert(string.to_string(), ident);
                     vec.push(ident);
                     match tokens.peek() {

@@ -42,8 +42,8 @@ where
 
     pub fn run<S: Read + 'static>(&mut self, script: S, file_path: PathBuf) -> i32 {
         let lines = lines(script);
-        let scope = Parser::new(lines, file_path).parse_outside_scope();
-        match scope {
+        let mut parser = Parser::new(lines, file_path);
+        match parser.parse_outside_scope() {
             Ok(s) => {
                 let mut evaluator = Evaluator::new(&mut self.input, &mut self.output, self.debug);
                 let result = evaluator.eval_outside_scope(&s);
@@ -53,7 +53,7 @@ where
                     Ok(_) => (),
                     Err(e) => self
                         .output
-                        .write_fmt(format_args!("{}", process_evaluator_error(e)))
+                        .write_fmt(format_args!("{}", process_evaluator_error(e, &parser.names)))
                         .unwrap(),
                 }
             }
