@@ -4,6 +4,9 @@ use crate::lexer::enums::Token;
 pub enum ParserErrorKind {
     PeekError,
     LexerError,
+    UnknownNameError {
+        name: String,
+    },
     IndentationError {
         msg: String,
         expected: i32,
@@ -58,6 +61,7 @@ impl ParserError {
                 "{:?}, expected indentation of {:?}, actual: {:?}",
                 msg, expected, actual
             ),
+            ParserErrorKind::UnknownNameError { name } => format!("Unknown name: {:?}", name),
             ParserErrorKind::CannotImportFile {
                 import_filename,
                 error_message,

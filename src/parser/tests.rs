@@ -34,14 +34,8 @@ fn test_one_line_expression_error(tokens: Vec<Token>, error: ParserError) {
 
 #[test]
 fn test_values() {
-    test_one_line_expression(
-        vec![Token::Name(String::from("foo"))],
-        Expression::Name(String::from("foo")),
-    );
-    test_one_line_expression(
-        vec![Token::Name(String::from("foo"))],
-        Expression::Name(String::from("foo")),
-    );
+    test_one_line_expression(vec![Token::True], Expression::Value(Value::Boolean(true)));
+    test_one_line_expression(vec![Token::True], Expression::Value(Value::Boolean(true)));
     test_one_line_expression(
         vec![Token::Str(String::from("bar"))],
         Expression::Value(Value::Tuple(
@@ -110,14 +104,14 @@ fn test_builtin_functions() {
         vec![
             Token::Cons,
             Token::LeftBracket,
-            Token::Name(String::from("foo")),
+            Token::True,
             Token::Comma,
-            Token::Name(String::from("bar")),
+            Token::False,
             Token::RightBracket,
         ],
         Expression::Cons(
-            Rc::new(Expression::Name(String::from("foo"))),
-            Rc::new(Expression::Name(String::from("bar"))),
+            Rc::new(Expression::Value(Value::Boolean(true))),
+            Rc::new(Expression::Value(Value::Boolean(false))),
         ),
     );
 
@@ -125,7 +119,7 @@ fn test_builtin_functions() {
         vec![
             Token::Cons,
             Token::LeftBracket,
-            Token::Name(String::from("foo")),
+            Token::True,
             Token::RightBracket,
         ],
         ParserError {
@@ -139,40 +133,46 @@ fn test_builtin_functions() {
         vec![
             Token::Print,
             Token::LeftBracket,
-            Token::Name(String::from("foo")),
+            Token::True,
             Token::RightBracket,
         ],
-        Expression::PrintCall{expr: Rc::new(Expression::Name(String::from("foo"))), newline: false},
+        Expression::PrintCall {
+            expr: Rc::new(Expression::Value(Value::Boolean(true))),
+            newline: false,
+        },
     );
 
     test_one_line_expression(
         vec![
             Token::Println,
             Token::LeftBracket,
-            Token::Name(String::from("foo")),
+            Token::True,
             Token::RightBracket,
         ],
-        Expression::PrintCall{expr: Rc::new(Expression::Name(String::from("foo"))), newline: true},
+        Expression::PrintCall {
+            expr: Rc::new(Expression::Value(Value::Boolean(true))),
+            newline: true,
+        },
     );
 
     test_one_line_expression(
         vec![
             Token::Left,
             Token::LeftBracket,
-            Token::Name(String::from("foo")),
+            Token::True,
             Token::RightBracket,
         ],
-        Expression::Left(Rc::new(Expression::Name(String::from("foo")))),
+        Expression::Left(Rc::new(Expression::Value(Value::Boolean(true)))),
     );
 
     test_one_line_expression(
         vec![
             Token::Right,
             Token::LeftBracket,
-            Token::Name(String::from("foo")),
+            Token::True,
             Token::RightBracket,
         ],
-        Expression::Right(Rc::new(Expression::Name(String::from("foo")))),
+        Expression::Right(Rc::new(Expression::Value(Value::Boolean(true)))),
     );
 
     test_one_line_expression_error(
@@ -191,18 +191,18 @@ fn test_builtin_functions() {
 fn test_expression() {
     test_one_line_expression(
         vec![
-            Token::Name(String::from("foo")),
+            Token::True,
             Token::LeftBracket,
-            Token::Name(String::from("a")),
+            Token::Number(String::from("1.5")),
             Token::Comma,
-            Token::Name(String::from("b")),
+            Token::Number(String::from("2.5")),
             Token::RightBracket,
         ],
         Expression::FunctionCall {
-            name: Rc::new(Expression::Name(String::from("foo"))),
+            expr: Rc::new(Expression::Value(Value::Boolean(true))),
             args: vec![
-                Rc::new(Expression::Name(String::from("a"))),
-                Rc::new(Expression::Name(String::from("b"))),
+                Rc::new(Expression::Value(Value::Number(Number::Float(1.5)))),
+                Rc::new(Expression::Value(Value::Number(Number::Float(2.5)))),
             ],
         },
     );
@@ -210,72 +210,60 @@ fn test_expression() {
 
 #[test]
 fn test_operation() {
-    // foo(a, b) + foo(b, c)
+    // cons(true, false) + cons(false, true)
     test_one_line_expression(
         vec![
-            Token::Name(String::from("foo")),
+            Token::Cons,
             Token::LeftBracket,
-            Token::Name(String::from("a")),
+            Token::True,
             Token::Comma,
-            Token::Name(String::from("b")),
+            Token::False,
             Token::RightBracket,
             Token::Operation(Op::Plus),
-            Token::Name(String::from("foo")),
+            Token::Cons,
             Token::LeftBracket,
-            Token::Name(String::from("b")),
+            Token::False,
             Token::Comma,
-            Token::Name(String::from("c")),
+            Token::True,
             Token::RightBracket,
         ],
         Expression::BinaryOperation(
             BinaryOp::Arithmetic(ArithBinOp::Plus),
-            Rc::new(Expression::FunctionCall {
-                name: Rc::new(Expression::Name(String::from("foo"))),
-                args: vec![
-                    Rc::new(Expression::Name(String::from("a"))),
-                    Rc::new(Expression::Name(String::from("b"))),
-                ],
-            }),
-            Rc::new(Expression::FunctionCall {
-                name: Rc::new(Expression::Name(String::from("foo"))),
-                args: vec![
-                    Rc::new(Expression::Name(String::from("b"))),
-                    Rc::new(Expression::Name(String::from("c"))),
-                ],
-            }),
+            Rc::new(Expression::Cons(
+                Rc::new(Expression::Value(Value::Boolean(true))),
+                Rc::new(Expression::Value(Value::Boolean(false))),
+            )),
+            Rc::new(Expression::Cons(
+                Rc::new(Expression::Value(Value::Boolean(false))),
+                Rc::new(Expression::Value(Value::Boolean(true))),
+            )),
         ),
     );
 }
 
 #[test]
 fn test_multiple_operation() {
-    // a + foo(b, c) < b
+    // true + left(false) < false
     test_one_line_expression(
         vec![
-            Token::Name(String::from("a")),
+            Token::True,
             Token::Operation(Op::Plus),
-            Token::Name(String::from("foo")),
+            Token::Left,
             Token::LeftBracket,
-            Token::Name(String::from("b")),
-            Token::Comma,
-            Token::Name(String::from("c")),
+            Token::False,
             Token::RightBracket,
             Token::Operation(Op::Lt),
-            Token::Name(String::from("b")),
+            Token::False,
         ],
         Expression::BinaryOperation(
             BinaryOp::Arithmetic(ArithBinOp::Plus),
-            Rc::new(Expression::Name(String::from("a"))),
+            Rc::new(Expression::Value(Value::Boolean(true))),
             Rc::new(Expression::BinaryOperation(
                 BinaryOp::Compare(CmpBinOp::Lt),
-                Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("foo"))),
-                    args: vec![
-                        Rc::new(Expression::Name(String::from("b"))),
-                        Rc::new(Expression::Name(String::from("c"))),
-                    ],
-                }),
-                Rc::new(Expression::Name(String::from("b"))),
+                Rc::new(Expression::Left(Rc::new(Expression::Value(
+                    Value::Boolean(false),
+                )))),
+                Rc::new(Expression::Value(Value::Boolean(false))),
             )),
         ),
     );
@@ -283,78 +271,75 @@ fn test_multiple_operation() {
 
 #[test]
 fn test_multiple_operation_or() {
-    // (n == 0) || empty(list)
+    // (false == 0) || empty(true)
     test_one_line_expression(
         vec![
             Token::LeftBracket,
-            Token::Name(String::from("n")),
+            Token::False,
             Token::Operation(Op::Eq),
             Token::Number(String::from("0")),
             Token::RightBracket,
             Token::Operation(Op::Or),
             Token::Empty,
             Token::LeftBracket,
-            Token::Name(String::from("list")),
+            Token::True,
             Token::RightBracket,
         ],
         Expression::BinaryOperation(
             BinaryOp::Boolean(BoolBinOp::Or),
             Rc::new(Expression::BinaryOperation(
                 BinaryOp::Compare(CmpBinOp::Eq),
-                Rc::new(Expression::Name(String::from("n"))),
+                Rc::new(Expression::Value(Value::Boolean(false))),
                 Rc::new(Expression::Value(Value::Number(Number::Integer(0)))),
             )),
-            Rc::new(Expression::Empty(Rc::new(Expression::Name(String::from(
-                "list",
-            ))))),
+            Rc::new(Expression::Empty(Rc::new(Expression::Value(
+                Value::Boolean(true),
+            )))),
         ),
     );
 }
 
 #[test]
 fn test_brackets_expression() {
-    // (a + foo(b, c)) >= b + (c - d)
+    // (true + cons(false, false)) >= true & (false | true)
     test_one_line_expression(
         vec![
             Token::LeftBracket,
-            Token::Name(String::from("a")),
+            Token::True,
             Token::Operation(Op::Plus),
-            Token::Name(String::from("foo")),
+            Token::Cons,
             Token::LeftBracket,
-            Token::Name(String::from("b")),
+            Token::False,
             Token::Comma,
-            Token::Name(String::from("c")),
+            Token::False,
             Token::RightBracket,
             Token::RightBracket,
             Token::Operation(Op::GEq),
-            Token::Name(String::from("b")),
-            Token::Operation(Op::Plus),
+            Token::True,
+            Token::Operation(Op::And),
             Token::LeftBracket,
-            Token::Name(String::from("c")),
-            Token::Operation(Op::Minus),
-            Token::Name(String::from("d")),
+            Token::False,
+            Token::Operation(Op::Or),
+            Token::True,
             Token::RightBracket,
         ],
         Expression::BinaryOperation(
             BinaryOp::Compare(CmpBinOp::GEq),
             Rc::new(Expression::BinaryOperation(
                 BinaryOp::Arithmetic(ArithBinOp::Plus),
-                Rc::new(Expression::Name(String::from("a"))),
-                Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("foo"))),
-                    args: vec![
-                        Rc::new(Expression::Name(String::from("b"))),
-                        Rc::new(Expression::Name(String::from("c"))),
-                    ],
-                }),
+                Rc::new(Expression::Value(Value::Boolean(true))),
+                Rc::new(Expression::Cons(
+                    Rc::new(Expression::Value(Value::Boolean(false))),
+                    Rc::new(Expression::Value(Value::Boolean(false))),
+                )),
             )),
             Rc::new(Expression::BinaryOperation(
-                BinaryOp::Arithmetic(ArithBinOp::Plus),
-                Rc::new(Expression::Name(String::from("b"))),
+                BinaryOp::Boolean(BoolBinOp::And),
+                Rc::new(Expression::Value(Value::Boolean(true))),
                 Rc::new(Expression::BinaryOperation(
-                    BinaryOp::Arithmetic(ArithBinOp::Minus),
-                    Rc::new(Expression::Name(String::from("c"))),
-                    Rc::new(Expression::Name(String::from("d"))),
+                    BinaryOp::Boolean(BoolBinOp::Or),
+                    Rc::new(Expression::Value(Value::Boolean(false))),
+                    Rc::new(Expression::Value(Value::Boolean(true))),
                 )),
             )),
         ),
@@ -363,39 +348,33 @@ fn test_brackets_expression() {
 
 #[test]
 fn test_nested_expression() {
-    // foo(a(12, b), c())
+    // cons(cons(12, true), false())
     test_one_line_expression(
         vec![
-            Token::Name(String::from("foo")),
+            Token::Cons,
             Token::LeftBracket,
-            Token::Name(String::from("a")),
+            Token::Cons,
             Token::LeftBracket,
             Token::Number(String::from("12")),
             Token::Comma,
-            Token::Name(String::from("b")),
+            Token::True,
             Token::RightBracket,
             Token::Comma,
-            Token::Name(String::from("c")),
+            Token::False,
             Token::LeftBracket,
             Token::RightBracket,
             Token::RightBracket,
         ],
-        Expression::FunctionCall {
-            name: Rc::new(Expression::Name(String::from("foo"))),
-            args: vec![
-                Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("a"))),
-                    args: vec![
-                        Rc::new(Expression::Value(Value::Number(Number::Integer(12)))),
-                        Rc::new(Expression::Name(String::from("b"))),
-                    ],
-                }),
-                Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("c"))),
-                    args: vec![],
-                }),
-            ],
-        },
+        Expression::Cons(
+            Rc::new(Expression::Cons(
+                Rc::new(Expression::Value(Value::Number(Number::Integer(12)))),
+                Rc::new(Expression::Value(Value::Boolean(true))),
+            )),
+            Rc::new(Expression::FunctionCall {
+                expr: Rc::new(Expression::Value(Value::Boolean(false))),
+                args: vec![],
+            }),
+        ),
     );
 }
 
@@ -408,7 +387,7 @@ fn test_assignments_name() {
             tokens: vec![
                 Token::Name(String::from("foo")),
                 Token::Assignment,
-                Token::Name(String::from("bar")),
+                Token::False,
             ],
         }),
         Ok(Line {
@@ -417,13 +396,13 @@ fn test_assignments_name() {
             tokens: vec![
                 Token::Name(String::from("bar")),
                 Token::Assignment,
-                Token::Name(String::from("foo")),
+                Token::True,
             ],
         }),
         Ok(Line {
             number: 3,
             indentation: 0,
-            tokens: vec![Token::Name(String::from("foo"))],
+            tokens: vec![Token::True],
         }),
     ];
     let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
@@ -433,15 +412,9 @@ fn test_assignments_name() {
         result,
         Scope::Impure {
             lines: vec![
-                ImpureLine::Assignment(
-                    String::from("foo"),
-                    Rc::new(Expression::Name(String::from("bar")))
-                ),
-                ImpureLine::Assignment(
-                    String::from("bar"),
-                    Rc::new(Expression::Name(String::from("foo")))
-                ),
-                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+                ImpureLine::Assignment(0, Rc::new(Expression::Value(Value::Boolean(false)))),
+                ImpureLine::Assignment(1, Rc::new(Expression::Value(Value::Boolean(true)))),
+                ImpureLine::Expression(Rc::new(Expression::Value(Value::Boolean(true))))
             ]
         }
     );
@@ -468,20 +441,20 @@ fn test_function_multiple_args() {
             number: 2,
             indentation: 1,
             tokens: vec![
-                Token::Name(String::from("bar")),
+                Token::Name(String::from("a")),
                 Token::Assignment,
                 Token::Number(String::from("123")),
             ],
         }),
         Ok(Line {
-            number: 3,
+            number: 2,
             indentation: 1,
-            tokens: vec![Token::Name(String::from("foo"))],
+            tokens: vec![Token::True],
         }),
         Ok(Line {
-            number: 4,
+            number: 3,
             indentation: 0,
-            tokens: vec![Token::Name(String::from("foo"))],
+            tokens: vec![Token::True],
         }),
     ];
     let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
@@ -492,19 +465,19 @@ fn test_function_multiple_args() {
         Scope::Impure {
             lines: vec![
                 ImpureLine::Assignment(
-                    String::from("foo"),
+                    0,
                     Rc::new(Expression::Value(Value::Function {
-                        params: vec![String::from("a"), String::from("b")],
+                        params: vec![1, 2],
                         scope: Box::new(Scope::Pure {
                             assignments: vec![(
-                                String::from("bar"),
+                                3,
                                 Rc::new(Expression::Value(Value::Number(Number::Integer(123))))
                             )],
-                            expression: Rc::new(Expression::Name(String::from("foo")))
+                            expression: Rc::new(Expression::Value(Value::Boolean(true)))
                         })
                     }))
                 ),
-                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+                ImpureLine::Expression(Rc::new(Expression::Value(Value::Boolean(true))))
             ]
         }
     );
@@ -527,12 +500,12 @@ fn test_function_no_args() {
         Ok(Line {
             number: 3,
             indentation: 1,
-            tokens: vec![Token::Name(String::from("foo"))],
+            tokens: vec![Token::True],
         }),
         Ok(Line {
             number: 4,
             indentation: 0,
-            tokens: vec![Token::Name(String::from("foo"))],
+            tokens: vec![Token::True],
         }),
     ];
     let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
@@ -543,16 +516,16 @@ fn test_function_no_args() {
         Scope::Impure {
             lines: vec![
                 ImpureLine::Assignment(
-                    String::from("foo"),
+                    0,
                     Rc::new(Expression::Value(Value::Function {
                         params: vec![],
                         scope: Box::new(Scope::Pure {
                             assignments: vec![],
-                            expression: Rc::new(Expression::Name(String::from("foo")))
+                            expression: Rc::new(Expression::Value(Value::Boolean(true)))
                         })
                     }))
                 ),
-                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+                ImpureLine::Expression(Rc::new(Expression::Value(Value::Boolean(true))))
             ]
         }
     );
@@ -574,17 +547,17 @@ fn test_function_impure_no_args() {
         Ok(Line {
             number: 3,
             indentation: 1,
-            tokens: vec![Token::Name(String::from("foo"))],
+            tokens: vec![Token::True],
         }),
         Ok(Line {
             number: 3,
             indentation: 1,
-            tokens: vec![Token::Name(String::from("bar"))],
+            tokens: vec![Token::False],
         }),
         Ok(Line {
             number: 4,
             indentation: 0,
-            tokens: vec![Token::Name(String::from("foo"))],
+            tokens: vec![Token::True],
         }),
     ];
     let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
@@ -595,22 +568,22 @@ fn test_function_impure_no_args() {
         Scope::Impure {
             lines: vec![
                 ImpureLine::Assignment(
-                    String::from("foo"),
+                    0,
                     Rc::new(Expression::Value(Value::Function {
                         params: vec![],
                         scope: Box::new(Scope::Impure {
                             lines: vec![
-                                ImpureLine::Expression(Rc::new(Expression::Name(String::from(
-                                    "foo"
+                                ImpureLine::Expression(Rc::new(Expression::Value(Value::Boolean(
+                                    true
                                 )))),
-                                ImpureLine::Expression(Rc::new(Expression::Name(String::from(
-                                    "bar"
-                                ))))
+                                ImpureLine::Expression(Rc::new(Expression::Value(Value::Boolean(
+                                    false
+                                )))),
                             ]
                         })
                     }))
                 ),
-                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+                ImpureLine::Expression(Rc::new(Expression::Value(Value::Boolean(true))))
             ]
         }
     );
@@ -626,7 +599,7 @@ fn test_if_else() {
                 Token::Name(String::from("foo")),
                 Token::Assignment,
                 Token::If,
-                Token::Name(String::from("bar")),
+                Token::False,
                 Token::Then,
             ],
         }),
@@ -657,7 +630,7 @@ fn test_if_else() {
         Ok(Line {
             number: 6,
             indentation: 0,
-            tokens: vec![Token::Name(String::from("foo"))],
+            tokens: vec![Token::True],
         }),
     ];
     let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new())
@@ -668,18 +641,16 @@ fn test_if_else() {
         Scope::Impure {
             lines: vec![
                 ImpureLine::Assignment(
-                    String::from("foo"),
+                    0,
                     Rc::new(Expression::If {
-                        condition: Rc::new(Expression::Name(String::from("bar"))),
+                        condition: Rc::new(Expression::Value(Value::Boolean(false))),
                         then_scope: Box::new(Scope::Impure {
                             lines: vec![
                                 ImpureLine::Assignment(
-                                    String::from("foo"),
+                                    1,
                                     Rc::new(Expression::Value(Value::Boolean(true)))
                                 ),
-                                ImpureLine::Expression(Rc::new(Expression::Name(String::from(
-                                    "foo"
-                                ))))
+                                ImpureLine::Expression(Rc::new(Expression::Ident(1)))
                             ]
                         }),
                         else_scope: Box::new(Scope::Impure {
@@ -689,7 +660,7 @@ fn test_if_else() {
                         })
                     })
                 ),
-                ImpureLine::Expression(Rc::new(Expression::Name(String::from("foo"))))
+                ImpureLine::Expression(Rc::new(Expression::Value(Value::Boolean(true))))
             ]
         }
     );
@@ -710,12 +681,7 @@ fn test_if_else_in_pure_scope() {
         Ok(Line {
             number: 2,
             indentation: 1,
-            tokens: vec![
-                Token::If,
-                Token::Name(String::from("bar")),
-                Token::Then,
-                Token::True,
-            ],
+            tokens: vec![Token::If, Token::False, Token::Then, Token::True],
         }),
         Ok(Line {
             number: 4,
@@ -735,13 +701,13 @@ fn test_if_else_in_pure_scope() {
         result,
         Scope::Impure {
             lines: vec![ImpureLine::Assignment(
-                String::from("foo"),
+                0,
                 Rc::new(Expression::Value(Value::Function {
                     params: vec![],
                     scope: Box::new(Scope::Pure {
                         assignments: vec![],
                         expression: Rc::new(Expression::If {
-                            condition: Rc::new(Expression::Name(String::from("bar"))),
+                            condition: Rc::new(Expression::Value(Value::Boolean(false))),
                             then_scope: Box::new(Scope::Pure {
                                 assignments: vec![],
                                 expression: Rc::new(Expression::Value(Value::Boolean(true)))
@@ -771,10 +737,10 @@ fn test_one_line_function_def() {
             Token::Name(String::from("a")),
         ],
         Expression::Value(Value::Function {
-            params: vec![String::from("a")],
+            params: vec![0],
             scope: Box::new(Scope::Pure {
                 assignments: vec![],
-                expression: Rc::new(Expression::Name(String::from("a"))),
+                expression: Rc::new(Expression::Ident(0)),
             }),
         }),
     )
@@ -785,22 +751,22 @@ fn test_one_line_if_else() {
     test_one_line_expression(
         vec![
             Token::If,
-            Token::Name(String::from("a")),
+            Token::True,
             Token::Then,
-            Token::Name(String::from("a")),
+            Token::True,
             Token::Else,
-            Token::Name(String::from("a")),
+            Token::False,
         ],
         Expression::If {
-            condition: Rc::new(Expression::Name(String::from("a"))),
+            condition: Rc::new(Expression::Value(Value::Boolean(true))),
             then_scope: Box::new(Scope::Impure {
-                lines: vec![ImpureLine::Expression(Rc::new(Expression::Name(
-                    String::from("a"),
+                lines: vec![ImpureLine::Expression(Rc::new(Expression::Value(
+                    Value::Boolean(true),
                 )))],
             }),
             else_scope: Box::new(Scope::Impure {
-                lines: vec![ImpureLine::Expression(Rc::new(Expression::Name(
-                    String::from("a"),
+                lines: vec![ImpureLine::Expression(Rc::new(Expression::Value(
+                    Value::Boolean(false),
                 )))],
             }),
         },

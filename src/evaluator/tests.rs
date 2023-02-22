@@ -300,18 +300,18 @@ fn test_evaluate_pure_function() {
         evaluator
             .force_eval(
                 Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("f"))),
+                    expr: Rc::new(Expression::Ident(0)),
                     args: vec![Rc::new(Expression::Value(Value::Boolean(true)))]
                 }),
                 HashTrieMap::new().insert(
-                    String::from("f"),
+                    0,
                     Rc::new(Expression::Value(Value::Function {
-                        params: vec![String::from("b")],
+                        params: vec![1],
                         scope: Box::new(Scope::Pure {
                             assignments: vec![],
                             expression: Rc::new(Expression::UnaryOperation(
                                 UnaryOp::Negation,
-                                Rc::new(Expression::Name(String::from("b")))
+                                Rc::new(Expression::Ident(1))
                             ))
                         })
                     }))
@@ -334,27 +334,24 @@ fn test_evaluate_read_print_function() {
         evaluator
             .force_eval(
                 Rc::new(Expression::FunctionCall {
-                    name: Rc::new(Expression::Name(String::from("f"))),
+                    expr: Rc::new(Expression::Ident(0)),
                     args: vec![]
                 }),
                 HashTrieMap::new().insert(
-                    String::from("f"),
+                    0,
                     Rc::new(Expression::Value(Value::Function {
                         params: vec![],
                         scope: Box::new(Scope::Impure {
                             lines: vec![
-                                ImpureLine::Assignment(
-                                    String::from("b"),
-                                    Rc::new(Expression::ReadCall)
-                                ),
+                                ImpureLine::Assignment(1, Rc::new(Expression::ReadCall)),
                                 ImpureLine::Expression(Rc::new(Expression::PrintCall {
-                                    expr: Rc::new(Expression::Name(String::from("b"))),
+                                    expr: Rc::new(Expression::Ident(1)),
                                     newline: true
                                 })),
                                 ImpureLine::Expression(Rc::new(Expression::PrintCall {
                                     expr: Rc::new(Expression::Cons(
                                         Rc::new(Expression::Value(Value::Char('a'))),
-                                        Rc::new(Expression::Name(String::from("b")))
+                                        Rc::new(Expression::Ident(1))
                                     )),
                                     newline: false
                                 }))

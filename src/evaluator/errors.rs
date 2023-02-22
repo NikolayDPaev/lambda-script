@@ -4,7 +4,7 @@ use crate::parser::enums::{ArithBinOp, BoolBinOp, CmpBinOp, Expression, Value};
 
 #[derive(Debug)]
 pub enum EvaluatorError {
-    UnknownName(Rc<Expression>),
+    //UnknownName(Rc<Expression>),
     FunctionExpected(Rc<Expression>),
     ArgsAndParamsLengthsMismatch(Rc<Expression>),
     InvalidUnaryOperation {
@@ -33,9 +33,9 @@ pub enum EvaluatorError {
 
 pub fn process_evaluator_error(err: EvaluatorError) -> String {
     let error = match err {
-        EvaluatorError::UnknownName(expression) => {
-            format!("Use of undeclared name in this scope:\n{:?}", expression)
-        }
+        // EvaluatorError::UnknownName(expression) => {
+        //     format!("Use of undeclared name in this scope:\n{:?}", expression)
+        // }
         EvaluatorError::FunctionExpected(expression) => {
             format!("Expected function, actual expression is:\n{:?}", expression)
         }

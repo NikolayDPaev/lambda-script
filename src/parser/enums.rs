@@ -12,7 +12,7 @@ pub type ImpureLine = FunctionLine;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Scope {
     Pure {
-        assignments: Vec<(String, Rc<Expression>)>,
+        assignments: Vec<(u32, Rc<Expression>)>,
         expression: Rc<Expression>,
     },
     Impure {
@@ -25,18 +25,21 @@ pub enum Scope {
 #[derive(PartialEq, Clone)]
 pub enum Expression {
     Value(Value),
-    Name(String),
+    Ident(u32),
     Thunk(
         Rc<Expression>,
-        #[educe(Debug(method = "fmt"))] HashTrieMap<String, Rc<Expression>>,
+        #[educe(Debug(method = "fmt"))] HashTrieMap<u32, Rc<Expression>>,
         #[educe(Debug(ignore))] bool,
     ),
     FunctionCall {
-        name: Rc<Expression>,
+        expr: Rc<Expression>,
         args: Vec<Rc<Expression>>,
     },
     ReadCall,
-    PrintCall{expr: Rc<Expression>, newline: bool},
+    PrintCall {
+        expr: Rc<Expression>,
+        newline: bool,
+    },
     Cons(Rc<Expression>, Rc<Expression>),
     Left(Rc<Expression>),
     Right(Rc<Expression>),
@@ -57,14 +60,11 @@ pub enum Value {
     Number(Number),
     Char(char),
     Tuple(Box<Value>, Box<Value>),
-    Function {
-        params: Vec<String>,
-        scope: Box<Scope>,
-    },
+    Function { params: Vec<u32>, scope: Box<Scope> },
 }
 
 // for debugging of hashTrieMap
-fn fmt(tree: &HashTrieMap<String, Rc<Expression>>, f: &mut Formatter) -> fmt::Result {
+fn fmt(tree: &HashTrieMap<u32, Rc<Expression>>, f: &mut Formatter) -> fmt::Result {
     write!(
         f,
         "{:?}",
@@ -120,8 +120,6 @@ impl PartialEq for Number {
 }
 
 impl Eq for Number {}
-
-
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BoolBinOp {

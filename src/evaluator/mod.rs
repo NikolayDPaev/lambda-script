@@ -45,26 +45,6 @@ macro_rules! make_thunk {
     };
 }
 
-// returns the expression this name refers to
-fn try_resolve_name(
-    expr: Rc<Expression>,
-    env: HashTrieMap<String, Rc<Expression>>,
-) -> Result<Rc<Expression>, EvaluatorError> {
-    let mut expression = expr;
-    loop {
-        match expression.as_ref() {
-            Expression::Name(name) => {
-                if let Some(expr) = env.get(name) {
-                    expression = expr.clone();
-                } else {
-                    return Err(EvaluatorError::UnknownName(expression));
-                }
-            }
-            _ => return Ok(expression),
-        }
-    }
-}
-
 pub struct Evaluator<'a, R: Read, W: Write> {
     thunk_memoization_map: HashMap<ByThinAddress<Rc<Expression>>, Rc<Expression>>,
     input: &'a mut BufReader<R>,
@@ -106,7 +86,7 @@ where
     fn force_eval(
         &mut self,
         expr: Rc<Expression>,
-        assignments: HashTrieMap<String, Rc<Expression>>,
+        assignments: HashTrieMap<u32, Rc<Expression>>,
         pure: bool,
     ) -> Result<Value, EvaluatorError> {
         let mut expression = expr.clone();
@@ -144,7 +124,7 @@ where
     fn eval_scope(
         &mut self,
         scope: &Scope,
-        outside_assignments: HashTrieMap<String, Rc<Expression>>,
+        outside_assignments: HashTrieMap<u32, Rc<Expression>>,
     ) -> Result<Rc<Expression>, EvaluatorError> {
         match scope {
             Scope::Pure {
@@ -163,7 +143,7 @@ where
                 let mut return_expr = Value::Nil;
                 for line in lines {
                     match line {
-                        ImpureLine::Assignment(name, expr) => {
+                        ImpureLine::Assignment(ident, expr) => {
                             let evaluated_expr = match expr.as_ref() {
                                 // if assignment expression is read call, force its evaluation
                                 Expression::ReadCall => self.force_read(),
@@ -173,8 +153,7 @@ where
                                     false,
                                 )?)),
                             };
-                            assignments_map =
-                                assignments_map.insert(name.to_string(), evaluated_expr);
+                            assignments_map = assignments_map.insert(*ident, evaluated_expr);
                             return_expr = Value::Nil;
                         }
                         ImpureLine::Expression(expr) => {
@@ -198,7 +177,7 @@ where
     fn eval_expression(
         &mut self,
         expr: Rc<Expression>,
-        assignments: HashTrieMap<String, Rc<Expression>>,
+        assignments: HashTrieMap<u32, Rc<Expression>>,
         pure: bool,
     ) -> Result<Rc<Expression>, EvaluatorError> {
         if self.debug {
@@ -227,34 +206,30 @@ where
                     .insert(ByThinAddress(expr), result.clone());
                 result
             }
-            Expression::Name(name) => {
-                if let Some(expr) = assignments.get(name) {
+            Expression::Ident(ident) => {
+                if let Some(expr) = assignments.get(ident) {
                     make_thunk!(expr.clone(), assignments, pure)
                 } else {
-                    return Err(EvaluatorError::UnknownName(expr));
+                    panic!("Ident should always be in the assignments map")
+                    //return Err(EvaluatorError::UnknownName(expr));
                 }
             }
-            Expression::FunctionCall { name, args } => {
-                match self.force_eval(name.clone(), assignments.clone(), pure)? {
+            Expression::FunctionCall { expr, args } => {
+                match self.force_eval(expr.clone(), assignments.clone(), pure)? {
                     Value::Function { params, scope } => {
                         if pure && matches!(scope.as_ref(), Scope::Impure { .. }) {
-                            return Err(EvaluatorError::SideEffectInPureScope(name.clone()));
+                            return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
                         }
                         if args.len() != params.len() {
-                            return Err(EvaluatorError::ArgsAndParamsLengthsMismatch(name.clone()));
-                        }
-                        // resolve names of args
-                        let mut resolved_args = vec![];
-                        for arg in args.iter() {
-                            resolved_args.push(try_resolve_name(arg.clone(), assignments.clone())?);
+                            return Err(EvaluatorError::ArgsAndParamsLengthsMismatch(expr.clone()));
                         }
 
                         // group params and args and add to environment
-                        let assignments = params.into_iter().zip(resolved_args.into_iter()).fold(
+                        let assignments = params.into_iter().zip(args.into_iter()).fold(
                             assignments.clone(),
-                            |acc, (string, expr)| {
+                            |acc, (ident, expr)| {
                                 acc.insert(
-                                    string.clone(),
+                                    ident,
                                     make_thunk!(
                                         expr,
                                         assignments,
@@ -266,7 +241,7 @@ where
                         self.eval_scope(&*scope, assignments)?
                     }
                     _ => {
-                        return Err(EvaluatorError::FunctionExpected(name.clone()));
+                        return Err(EvaluatorError::FunctionExpected(expr.clone()));
                     }
                 }
             }
@@ -274,7 +249,10 @@ where
                 // Reads must have been evaluated in the evaluation of impure scope
                 return Err(EvaluatorError::UnexpectedRead());
             }
-            Expression::PrintCall{expr: inside_expr, newline} => {
+            Expression::PrintCall {
+                expr: inside_expr,
+                newline,
+            } => {
                 if pure {
                     return Err(EvaluatorError::SideEffectInPureScope(expr.clone()));
                 }
