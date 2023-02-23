@@ -4,7 +4,7 @@ fn test_expression(e: Expression, v: Value) {
     let inner_input = vec![];
     let mut input: BufReader<_> = BufReader::new(inner_input.as_slice());
     let mut output = BufWriter::new(vec![]);
-    let mut evaluator = Evaluator::new(&mut input, &mut output, false);
+    let mut evaluator = Evaluator::new(&mut input, &mut output);
     assert_eq!(
         evaluator
             .force_eval(Rc::new(e), HashTrieMap::new(), true)
@@ -295,7 +295,7 @@ fn test_evaluate_pure_function() {
     let inner_input = vec![];
     let mut input: BufReader<_> = BufReader::new(inner_input.as_slice());
     let mut output = BufWriter::new(vec![]);
-    let mut evaluator = Evaluator::new(&mut input, &mut output, false);
+    let mut evaluator = Evaluator::new(&mut input, &mut output);
     assert_eq!(
         evaluator
             .force_eval(
@@ -329,7 +329,7 @@ fn test_evaluate_read_print_function() {
     let mut output = Vec::<u8>::new();
     let mut input_stream: BufReader<_> = BufReader::new(input.as_bytes());
     let mut output_stream = BufWriter::new(&mut output);
-    let mut evaluator = Evaluator::new(&mut input_stream, &mut output_stream, false);
+    let mut evaluator = Evaluator::new(&mut input_stream, &mut output_stream);
     assert_eq!(
         evaluator
             .force_eval(

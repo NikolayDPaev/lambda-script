@@ -24,7 +24,6 @@ mod tests;
 pub struct Interpreter<R: Read, W: Write> {
     input: BufReader<R>,
     output: BufWriter<W>,
-    debug: bool,
 }
 
 impl<R, W> Interpreter<R, W>
@@ -32,11 +31,10 @@ where
     R: Read,
     W: Write,
 {
-    pub fn new(input: R, output: W, debug: bool) -> Interpreter<R, W> {
+    pub fn new(input: R, output: W) -> Interpreter<R, W> {
         Interpreter {
             input: BufReader::new(input),
             output: BufWriter::new(output),
-            debug,
         }
     }
 
@@ -45,7 +43,7 @@ where
         let mut parser = Parser::new(lines, file_path);
         match parser.parse_outside_scope() {
             Ok(s) => {
-                let mut evaluator = Evaluator::new(&mut self.input, &mut self.output, self.debug);
+                let mut evaluator = Evaluator::new(&mut self.input, &mut self.output);
                 let result = evaluator.eval_outside_scope(&s);
                 match result {
                     Ok(Value::Nil) => return 0,
@@ -53,7 +51,10 @@ where
                     Ok(_) => (),
                     Err(e) => self
                         .output
-                        .write_fmt(format_args!("{}", process_evaluator_error(e, &parser.names)))
+                        .write_fmt(format_args!(
+                            "{}",
+                            process_evaluator_error(e, &parser.names)
+                        ))
                         .unwrap(),
                 }
             }
@@ -72,15 +73,7 @@ fn main() {
         path.push("resources");
     }
 
-    let mut debug = false;
     let filename = match env::args().nth(1) {
-        Some(arg) if arg == "-d" || arg == "--debug" => {
-            debug = true;
-            match env::args().nth(2) {
-                Some(arg) => arg,
-                _ => std::process::exit(1),
-            }
-        }
         Some(arg) if arg == "-h" || arg == "--help" => {
             println!("Usage: lambda-script.exe <file>");
             println!("Options: --debug (-d), --help (-h)");
@@ -110,6 +103,6 @@ fn main() {
             std::process::exit(1)
         }
     };
-    let code = Interpreter::new(stdin(), stdout(), debug).run(file, canonical_path);
+    let code = Interpreter::new(stdin(), stdout()).run(file, canonical_path);
     std::process::exit(code);
 }

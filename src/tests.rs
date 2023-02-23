@@ -16,7 +16,7 @@ genNaturalsFrom = [n] ->
 println(take(3, genNaturalsFrom(1)))";
     let input = vec![];
     let mut output = Vec::<u8>::new();
-    let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
+    let mut interpreter = Interpreter::new(input.as_slice(), &mut output);
     assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);
     assert_eq!(
@@ -41,7 +41,7 @@ square = [x] -> x * x
 println(map(square, list))";
     let input = vec![];
     let mut output = Vec::<u8>::new();
-    let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
+    let mut interpreter = Interpreter::new(input.as_slice(), &mut output);
 
     assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);
@@ -66,7 +66,7 @@ println(plus(1, 2))
 println(getFunction('-')(2.5, 2))";
     let input = vec![];
     let mut output = Vec::<u8>::new();
-    let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
+    let mut interpreter = Interpreter::new(input.as_slice(), &mut output);
 
     assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);
@@ -94,7 +94,7 @@ guess()
 ";
     let input = String::from("a\nu\nf\n");
     let mut output = Vec::<u8>::new();
-    let mut interpreter = Interpreter::new(input.as_bytes(), &mut output, false);
+    let mut interpreter = Interpreter::new(input.as_bytes(), &mut output);
     assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);
     assert_eq!(
@@ -117,7 +117,7 @@ countTo = [n] ->
 println(countTo(1000))";
     let input = vec![];
     let mut output = Vec::<u8>::new();
-    let mut interpreter = Interpreter::new(input.as_slice(), &mut output, false);
+    let mut interpreter = Interpreter::new(input.as_slice(), &mut output);
 
     assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);

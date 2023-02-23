@@ -49,7 +49,6 @@ pub struct Evaluator<'a, R: Read, W: Write> {
     thunk_memoization_map: HashMap<ByThinAddress<Rc<Expression>>, Rc<Expression>>,
     input: &'a mut BufReader<R>,
     output: &'a mut BufWriter<W>,
-    debug: bool,
 }
 
 impl<R, W> Evaluator<'_, R, W>
@@ -60,13 +59,11 @@ where
     pub fn new<'a>(
         input: &'a mut BufReader<R>,
         output: &'a mut BufWriter<W>,
-        debug: bool,
     ) -> Evaluator<'a, R, W> {
         Evaluator {
             thunk_memoization_map: HashMap::new(),
             input,
             output,
-            debug,
         }
     }
 
@@ -102,8 +99,12 @@ where
                 }
                 return Ok(value.clone());
             }
-            expression = self.eval_expression(expression, assignments.clone(), pure)
-                .map_err(|error| EvaluatorError::ErrorWithInfo { expr: expr.clone(), error: Box::new(error) })?
+            expression = self
+                .eval_expression(expression, assignments.clone(), pure)
+                .map_err(|error| EvaluatorError::ErrorWithInfo {
+                    expr: expr.clone(),
+                    error: Box::new(error),
+                })?
         }
     }
 
@@ -181,23 +182,12 @@ where
         assignments: HashTrieMap<u32, Rc<Expression>>,
         pure: bool,
     ) -> Result<Rc<Expression>, EvaluatorError> {
-        if self.debug {
-            writeln!(self.output, "Evaluating: {:?}", expr).unwrap();
-        }
         let result = match expr.as_ref() {
             Expression::Value(_) => expr.clone(),
             Expression::Thunk(inside_expr, env, pure) => {
                 if let Some(expression) =
                     self.thunk_memoization_map.get(&ByThinAddress(expr.clone()))
                 {
-                    if self.debug {
-                        writeln!(
-                            self.output,
-                            "Using memoization for: {:?} -> {:?}",
-                            expr, expression
-                        )
-                        .unwrap();
-                    }
                     return Ok(expression.clone());
                 }
                 let result = self.eval_expression(inside_expr.clone(), env.clone(), *pure)?;
