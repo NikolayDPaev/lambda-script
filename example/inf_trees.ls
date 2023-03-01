@@ -24,30 +24,8 @@ bfsList = [tree] ->
     traverse(cons(tree, nil))
 
 # testing
-genNaturals = ->
-    genNaturalsFrom = [n] ->
-        cons(n, genNaturalsFrom(n+1))
-    genNaturalsFrom(0)
 
-# splits the list into two lists: the first consists of the elements at even positions and the second the rest
-# returns a tuple of lists
-splitList = [list] ->
-    if empty(list) then
-        cons(nil, nil)
-    else if empty(right(list)) then
-        first = cons(left(list), nil)
-        second = nil
-        cons(first, second)
-    else
-        rest = splitList(right(right(list)))
-        first = cons(left(list), left(rest))
-        second = cons(left(right(list)), right(rest)) 
-        cons(first, second)
+makeNatsIntoTree = [n] ->
+    nodeCons(n, makeNatsIntoTree(1 + 2*n), makeNatsIntoTree(2 + 2*n))
 
-makeIntoTree = [list] ->
-    if empty(list) then nil
-    else
-        split = splitList(right(list))
-        nodeCons(left(list), makeIntoTree(left(split)), makeIntoTree(right(split)))
-
-printlnList(take(10, bfsList(makeIntoTree(genNaturals()))))
+printlnList(take(15, bfsList(makeNatsIntoTree(0))))
