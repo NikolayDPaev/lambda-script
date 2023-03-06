@@ -132,11 +132,11 @@ impl Evaluator {
         assignments: HashTrieMap<String, Rc<RefCell<Expression>>>,
         memoize: bool,
     ) -> Result<Rc<RefCell<Expression>>, EvaluatorError> {
-        let mut temp = Expression::Value(Value::Nil);
-        let mut inside_rc = expr.replace(temp);
+        let temp = Expression::Value(Value::Nil);
+        let inside_rc = expr.replace(temp);
 
         let result = match &inside_rc {
-            Expression::Value(_) => expr,
+            Expression::Value(_) => expr.clone(),
             Expression::Thunk(inside_expr, env, memoize) => {
                 let result = self.eval_expression(inside_expr.clone(), env.clone(), *memoize)?;
                 // if matches!(*expr.borrow(), Expression::ReadCall) {
@@ -320,8 +320,9 @@ impl Evaluator {
         };
 
         if memoize {
-            let result_expr = &mut *result;
-            let _ = std::mem::replace(&mut inside_rc, result_expr);
+            let result_expr = result.replace(Expression::Value(Value::Nil));
+            expr.replace(result_expr);
+            return Ok(expr);
         }
         Ok(result)
     }
