@@ -3,6 +3,7 @@ mod operations;
 mod tests;
 use by_address::ByAddress;
 use rpds::HashTrieMap;
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::{collections::HashMap, rc::Rc};
 
@@ -131,12 +132,11 @@ impl Evaluator {
         assignments: HashTrieMap<String, Rc<RefCell<Expression>>>,
         memoize: bool,
     ) -> Result<Rc<RefCell<Expression>>, EvaluatorError> {
-        // if let Some(expression) = self.memoization_map.get(&ByAddress(expr.clone())) {
-        //     //println!("using memoization for: {:?}", expression);
-        //     return Ok(expression.clone());
-        // } else {
-        let result = match &*expr.borrow() {
-            Expression::Value(_) => expr.clone(),
+        let mut temp = Expression::Value(Value::Nil);
+        let mut inside_rc = expr.replace(temp);
+
+        let result = match &inside_rc {
+            Expression::Value(_) => expr,
             Expression::Thunk(inside_expr, env, memoize) => {
                 let result = self.eval_expression(inside_expr.clone(), env.clone(), *memoize)?;
                 // if matches!(*expr.borrow(), Expression::ReadCall) {
@@ -320,7 +320,8 @@ impl Evaluator {
         };
 
         if memoize {
-            let _ = std::mem::replace(&mut *expr.borrow_mut(), result.borrow().clone());
+            let result_expr = &mut *result;
+            let _ = std::mem::replace(&mut inside_rc, result_expr);
         }
         Ok(result)
     }
