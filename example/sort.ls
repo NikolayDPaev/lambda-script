@@ -41,6 +41,6 @@ selectionsort = [list] ->
         cons(maxElement, rest)
 
 
-list = range(0, 200)
+list = range(0, 100)
 # printlnList(selectionsort(list))
 printlnList(mergesort(list))
