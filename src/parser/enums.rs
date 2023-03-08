@@ -27,11 +27,12 @@ pub enum Scope {
 pub enum Expression {
     Value(Value),
     Ident(u32),
-    Thunk(
-        RefCell<Rc<Expression>>,
-        #[educe(Debug(method = "fmt"))] HashTrieMap<u32, Rc<Expression>>,
-        #[educe(Debug(ignore))] bool,
-    ),
+    Thunk {
+        expr: RefCell<Rc<Expression>>,
+        memoized: RefCell<bool>,
+        #[educe(Debug(method = "fmt"))] env: HashTrieMap<u32, Rc<Expression>>,
+        #[educe(Debug(ignore))] pure: bool,
+    },
     FunctionCall {
         expr: Rc<Expression>,
         args: Vec<Rc<Expression>>,
@@ -189,7 +190,7 @@ pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
     match expr.as_ref() {
         Expression::Value(value) => format!("Value({})", display_value(value, names)),
         Expression::Ident(ident) => format!("{}", names[*ident as usize]),
-        Expression::Thunk(expr, env, _) => {
+        Expression::Thunk{expr, env, ..} => {
             // transforms refcell<rc<expression>> into rc<expression>
             let expr_rc = expr.replace(Rc::new(Expression::Value(Value::Nil)));
             format!(
