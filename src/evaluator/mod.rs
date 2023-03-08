@@ -88,7 +88,6 @@ where
         loop {
             // if the expression is a thunk, then remember it for later memoization
             if matches!(expression.as_ref(), Expression::Thunk { .. })
-                && pure
                 && thunk_for_memo.is_none()
             {
                 thunk_for_memo = Some(expression.clone());
@@ -216,12 +215,9 @@ where
                             // if expr is not a value, then evaluate it and memoize the result, by replacing the old one
                             let result =
                                 self.eval_expression(inside_rc.clone(), env.clone(), *pure)?;
-                            if *pure { // memoize only if the thunk is pure
-                                memoized.replace(true);
-                                expr.replace(result.clone());
-                            } else {
-                                expr.replace(inside_rc.clone());
-                            }
+                            memoized.replace(true);
+                            expr.replace(result.clone());
+
                             result
                         }
                     }
