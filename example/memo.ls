@@ -14,12 +14,4 @@ iterFib = [n] ->
     else if n == 1 then 1
     else helper(n - 1, 0, 1)
 
-checkFib = [n] ->
-    loop = [m] ->
-        fib = iterFib(m)
-        if n == fib then true
-        else if n < fib then false
-        else loop(m + 1)
-    loop(0)
-
-println(checkFib(102334155))
+println(iterFib(5000))

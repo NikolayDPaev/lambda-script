@@ -77,13 +77,6 @@ tokenize = [str, delimiter] ->
         rest = tokenize(right(str), delimiter)
         cons(cons(left(str), left(rest)), right(rest))
 
-range = [a, b] ->
-    if a >= b then nil
-    else cons(a, range(a + 1, b))
-
-infiniteRange = [a] ->
-    cons(a, infiniteRange(a + 1))
-
 # impure functions
 printlnList = impure [xs] ->
     helper = impure [xs] ->
