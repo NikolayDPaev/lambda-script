@@ -85,13 +85,13 @@ where
         pure: bool,
     ) -> Result<Value, EvaluatorError> {
         let mut expression = expr.clone();
-        let mut thunks_for_memo = vec![];
+        let mut thunk_for_memo = None;
         loop {
             if pure && matches!(expression.as_ref(), Expression::Thunk(..)) {
-                thunks_for_memo.push(expression.clone());
+                thunk_for_memo = Some(expression.clone());
             }
             if let Expression::Value(value) = expression.as_ref() {
-                while let Some(thunk_expr) = thunks_for_memo.pop() {
+                if let Some(thunk_expr) = thunk_for_memo {
                     match thunk_expr.as_ref() {
                         Expression::Thunk(inside_refcell,_ , _ ) => {
                             inside_refcell.replace(expression.clone());
@@ -188,11 +188,6 @@ where
         let result = match expr.as_ref() {
             Expression::Value(_) => expr.clone(),
             Expression::Thunk(refcell, env, pure) => {
-                // if let Some(expression) =
-                //     self.thunk_memoization_map.get(&ByThinAddress(expr.clone()))
-                // {
-                //     return Ok(expression.clone());
-                // }
                 let inside_rc = refcell.replace(Rc::new(Expression::Value(Value::Nil)));
                 match inside_rc.as_ref() {
                     Expression::Value(..) => {
@@ -203,11 +198,8 @@ where
                     _ => {
                         // if it is not a value, then evaluate it and put the result inside
                         let result = self.eval_expression(inside_rc.clone(), env.clone(), *pure)?;
-                        refcell.replace(result.clone());
                         
-                        // // super important for the full memoization
-                        // self.thunk_memoization_map
-                        //     .insert(ByThinAddress(expr), result.clone());
+                        refcell.replace(result.clone());
                         result
                     }
                 }
@@ -217,7 +209,6 @@ where
                     make_thunk!(expr.clone(), assignments, pure)
                 } else {
                     panic!("Ident should always be in the assignments map")
-                    //return Err(EvaluatorError::UnknownName(expr));
                 }
             }
             Expression::FunctionCall { expr, args } => {
