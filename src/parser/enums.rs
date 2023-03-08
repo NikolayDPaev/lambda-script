@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     cmp::Ordering,
     fmt::{self, Formatter},
     rc::Rc,
@@ -26,11 +27,12 @@ pub enum Scope {
 pub enum Expression {
     Value(Value),
     Ident(u32),
-    Thunk(
-        Rc<Expression>,
-        #[educe(Debug(method = "fmt"))] HashTrieMap<u32, Rc<Expression>>,
-        #[educe(Debug(ignore))] bool,
-    ),
+    Thunk {
+        expr: RefCell<Rc<Expression>>,
+        memoized: RefCell<bool>,
+        #[educe(Debug(method = "fmt"))] env: HashTrieMap<u32, Rc<Expression>>,
+        #[educe(Debug(ignore))] pure: bool,
+    },
     FunctionCall {
         expr: Rc<Expression>,
         args: Vec<Rc<Expression>>,
@@ -188,19 +190,24 @@ pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
     match expr.as_ref() {
         Expression::Value(value) => format!("Value({})", display_value(value, names)),
         Expression::Ident(ident) => format!("{}", names[*ident as usize]),
-        Expression::Thunk(expr, env, _) => format!(
-            "Thunk({}, env: {:?})",
-            display_expr(expr.clone(), names),
-            env.iter()
-                .filter(|(_, expr)| {
-                    match expr.as_ref() {
-                        Expression::Value(Value::Function { .. }) => false,
-                        Expression::Value(_) => true,
-                        _ => false,
-                    }
-                })
-                .collect::<Vec<_>>()
-        ),
+        Expression::Thunk{expr, env, ..} => {
+            // transforms refcell<rc<expression>> into rc<expression>
+            let expr_rc = expr.replace(Rc::new(Expression::Value(Value::Nil)));
+            format!(
+                "Thunk({}, env: {:?})",
+                display_expr(expr_rc.clone(), names),
+                env.iter()
+                    .map(|(ident, expr)| (names[*ident as usize].clone(), expr))
+                    .filter(|(_, expr)| {
+                        match expr.as_ref() {
+                            Expression::Value(Value::Function { .. }) => false,
+                            Expression::Value(_) => true,
+                            _ => false,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            )
+        }
         Expression::FunctionCall { expr, args } => format!(
             "FunctionCall({}, {:?})",
             display_expr(expr.clone(), names),
@@ -209,17 +216,32 @@ pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
                 .collect::<Vec<String>>()
         ),
         Expression::ReadCall => format!("Read"),
-        Expression::PrintCall { expr, newline: _ } => format!("Print({})", display_expr(expr.clone(), names)),
-        Expression::Cons(expr1, expr2) => format!("Cons({}, {})", display_expr(expr1.clone(), names), display_expr(expr2.clone(), names)),
+        Expression::PrintCall { expr, newline: _ } => {
+            format!("Print({})", display_expr(expr.clone(), names))
+        }
+        Expression::Cons(expr1, expr2) => format!(
+            "Cons({}, {})",
+            display_expr(expr1.clone(), names),
+            display_expr(expr2.clone(), names)
+        ),
         Expression::Left(expr) => format!("Left({})", display_expr(expr.clone(), names)),
         Expression::Right(expr) => format!("Right({})", display_expr(expr.clone(), names)),
         Expression::Empty(expr) => format!("Empty({})", display_expr(expr.clone(), names)),
-        Expression::UnaryOperation(op, expr) => format!("UnaryOperation({:?}, {})", op, display_expr(expr.clone(), names)),
-        Expression::BinaryOperation(op, expr1, expr2) => format!("BinaryOperation({:?}, {}, {})", op, display_expr(expr1.clone(), names), display_expr(expr2.clone(), names)),
+        Expression::UnaryOperation(op, expr) => format!(
+            "UnaryOperation({:?}, {})",
+            op,
+            display_expr(expr.clone(), names)
+        ),
+        Expression::BinaryOperation(op, expr1, expr2) => format!(
+            "BinaryOperation({:?}, {}, {})",
+            op,
+            display_expr(expr1.clone(), names),
+            display_expr(expr2.clone(), names)
+        ),
         Expression::If {
             condition,
             then_scope: _,
             else_scope: _,
-        } => format!("If({})", display_expr(condition.clone(), names))
+        } => format!("If({})", display_expr(condition.clone(), names)),
     }
 }

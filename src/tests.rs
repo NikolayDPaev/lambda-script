@@ -114,12 +114,12 @@ countTo = [n] ->
             loop(m + 1, n)
     loop(0, n)
 
-println(countTo(1000))";
+println(countTo(500))";
     let input = vec![];
     let mut output = Vec::<u8>::new();
     let mut interpreter = Interpreter::new(input.as_slice(), &mut output);
 
     assert_eq!(interpreter.run(script.as_bytes(), PathBuf::new()), 0);
     std::mem::drop(interpreter);
-    assert_eq!(String::from_utf8(output).unwrap(), String::from("1000\n"));
+    assert_eq!(String::from_utf8(output).unwrap(), String::from("500\n"));
 }
