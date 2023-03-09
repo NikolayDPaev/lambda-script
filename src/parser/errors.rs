@@ -51,67 +51,67 @@ pub struct ParserError {
 impl ParserError {
     pub fn get_message(self) -> String {
         let message = match self.kind {
-            ParserErrorKind::PeekError => format!("error peeking next token"),
-            ParserErrorKind::LexerError => format!("error in the underlying lexer"),
+            ParserErrorKind::PeekError => format!("Error peeking next token"),
+            ParserErrorKind::LexerError => format!("Error in the underlying lexer"),
             ParserErrorKind::IndentationError {
                 msg,
                 expected,
                 actual,
             } => format!(
-                "{:?}, expected indentation of {:?}, actual: {:?}",
+                "{}, expected: {}, actual: {}",
                 msg, expected, actual
             ),
-            ParserErrorKind::UnknownNameError { name } => format!("Unknown name: {:?}", name),
+            ParserErrorKind::UnknownNameError { name } => format!("Unknown name: {}", name),
             ParserErrorKind::CannotImportFile {
                 import_filename,
                 error_message,
             } => {
                 format!(
-                    "invalid import of file {:?}, error: {}",
+                    "Invalid import of file {}, error: {}",
                     import_filename, error_message
                 )
             }
             ParserErrorKind::ExpressionExpected => {
-                format!("expected expression")
+                format!("Expected expression")
             }
-            ParserErrorKind::CommaExpected => format!("expected comma"),
-            ParserErrorKind::UnexpectedEOF => format!("unexpected end of file"),
-            ParserErrorKind::UnexpectedEndOfLine => format!("unexpected end of file"),
+            ParserErrorKind::CommaExpected => format!("Expected comma"),
+            ParserErrorKind::UnexpectedEOF => format!("Unexpected end of file"),
+            ParserErrorKind::UnexpectedEndOfLine => format!("Unexpected end of file"),
             ParserErrorKind::ReturnExpressionError { msg } => {
-                format!("{:?}", msg)
+                format!("{}", msg)
             }
             ParserErrorKind::AssignmentError { msg } => {
-                format!("{:?}", msg)
+                format!("{}", msg)
             }
             ParserErrorKind::UnbalancedBracketsError => {
-                format!("unbalanced brackets")
+                format!("Unbalanced brackets")
             }
             ParserErrorKind::NumberParseError => {
-                format!("error parsing number")
+                format!("Error parsing number")
             }
-            ParserErrorKind::CharParseError => format!("error parsing char"),
+            ParserErrorKind::CharParseError => format!("Error parsing char"),
             ParserErrorKind::FilenameStringExpected => {
-                format!("expected filename string ")
+                format!("Expected filename string ")
             }
-            ParserErrorKind::NameExpected => format!("expected name"),
-            ParserErrorKind::ArrowExpected => format!("expected arrow"),
+            ParserErrorKind::NameExpected => format!("Expected name"),
+            ParserErrorKind::ArrowExpected => format!("Expected arrow"),
             ParserErrorKind::LeftBracketExpected => {
-                format!("expected opening bracket")
+                format!("Expected opening bracket")
             }
             ParserErrorKind::ThenExpected => {
-                format!("expected token then")
+                format!("Expected token then")
             }
             ParserErrorKind::ElseExpected => {
-                format!("expected token else")
+                format!("Expected token else")
             }
             ParserErrorKind::UnexpectedToken { token } => {
-                format!("unexpected token {:?}", token)
+                format!("Unexpected token {:?}", token)
             }
-            ParserErrorKind::OpError => format!("unexpected operation"),
+            ParserErrorKind::OpError => format!("Unexpected operation"),
         };
 
         format!(
-            "Error parsing file: {}, line: {}:\nError: {}.\n",
+            "Error parsing file: {}\nline {}:\n\t{}\n",
             self.filename, self.line, message
         )
     }

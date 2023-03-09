@@ -177,27 +177,27 @@ pub fn display_value(value: &Value, names: &[String]) -> String {
             display_value(v2, names)
         ),
         Value::Function { params, scope: _ } => format!(
-            "function {:?}",
+            "function [{}]",
             params
                 .into_iter()
                 .map(|ident| names[*ident as usize].to_owned())
-                .collect::<Vec<String>>()
+                .fold(String::new(), |mut acc, x| {acc.push_str(&x); acc.push_str(", "); acc})
+                .strip_suffix(", ").unwrap_or("")
         ),
     }
 }
 
 pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
     match expr.as_ref() {
-        Expression::Value(value) => format!("Value({})", display_value(value, names)),
+        Expression::Value(value) => format!("{}", display_value(value, names)),
         Expression::Ident(ident) => format!("{}", names[*ident as usize]),
         Expression::Thunk{expr, env, ..} => {
             // transforms refcell<rc<expression>> into rc<expression>
             let expr_rc = expr.replace(Rc::new(Expression::Value(Value::Nil)));
             format!(
-                "Thunk({}, env: {:?})",
+                "Thunk {} with env: {:?}",
                 display_expr(expr_rc.clone(), names),
                 env.iter()
-                    .map(|(ident, expr)| (names[*ident as usize].clone(), expr))
                     .filter(|(_, expr)| {
                         match expr.as_ref() {
                             Expression::Value(Value::Function { .. }) => false,
@@ -205,43 +205,74 @@ pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
                             _ => false,
                         }
                     })
-                    .collect::<Vec<_>>()
+                    .map(|(ident, expr)| format!("({}: {})", names[*ident as usize].clone(), display_expr(expr.clone(), names)))
+                    .fold(String::new(), |mut acc, x| {acc.push_str(&x); acc.push_str(", "); acc})
+                    .strip_suffix(", ").unwrap_or("")
             )
         }
         Expression::FunctionCall { expr, args } => format!(
-            "FunctionCall({}, {:?})",
+            "{}({})",
             display_expr(expr.clone(), names),
             args.into_iter()
                 .map(|expr| display_expr(expr.clone(), names))
-                .collect::<Vec<String>>()
+                .fold(String::new(), |mut acc, x| {acc.push_str(&x); acc.push_str(", "); acc})
+                .strip_suffix(", ").unwrap_or("")
         ),
-        Expression::ReadCall => format!("Read"),
+        Expression::ReadCall => format!("read"),
         Expression::PrintCall { expr, newline: _ } => {
-            format!("Print({})", display_expr(expr.clone(), names))
+            format!("print({})", display_expr(expr.clone(), names))
         }
         Expression::Cons(expr1, expr2) => format!(
-            "Cons({}, {})",
+            "cons({}, {})",
             display_expr(expr1.clone(), names),
             display_expr(expr2.clone(), names)
         ),
-        Expression::Left(expr) => format!("Left({})", display_expr(expr.clone(), names)),
-        Expression::Right(expr) => format!("Right({})", display_expr(expr.clone(), names)),
-        Expression::Empty(expr) => format!("Empty({})", display_expr(expr.clone(), names)),
+        Expression::Left(expr) => format!("left({})", display_expr(expr.clone(), names)),
+        Expression::Right(expr) => format!("right({})", display_expr(expr.clone(), names)),
+        Expression::Empty(expr) => format!("empty({})", display_expr(expr.clone(), names)),
         Expression::UnaryOperation(op, expr) => format!(
-            "UnaryOperation({:?}, {})",
-            op,
+            "({} {})",
+            display_un_op(op),
             display_expr(expr.clone(), names)
         ),
         Expression::BinaryOperation(op, expr1, expr2) => format!(
-            "BinaryOperation({:?}, {}, {})",
-            op,
+            "({} {} {})",
             display_expr(expr1.clone(), names),
+            display_bin_op(op),
             display_expr(expr2.clone(), names)
         ),
         Expression::If {
             condition,
             then_scope: _,
             else_scope: _,
-        } => format!("If({})", display_expr(condition.clone(), names)),
+        } => format!("if {} then .. else ..", display_expr(condition.clone(), names)),
+    }
+}
+
+fn display_bin_op(op: &BinaryOp) -> String {
+    match op {
+        BinaryOp::Boolean(BoolBinOp::And) => String::from("&"),
+        BinaryOp::Boolean(BoolBinOp::Or) => String::from("|"),
+        BinaryOp::Boolean(BoolBinOp::Xor) => String::from("^"),
+        BinaryOp::Arithmetic(ArithBinOp::Division) => String::from("/"),
+        BinaryOp::Arithmetic(ArithBinOp::Exponentiation) => String::from("**"),
+        BinaryOp::Arithmetic(ArithBinOp::IntDivision) => String::from("//"),
+        BinaryOp::Arithmetic(ArithBinOp::Minus) => String::from("-"),
+        BinaryOp::Arithmetic(ArithBinOp::Modulo) => String::from("%"),
+        BinaryOp::Arithmetic(ArithBinOp::Multiplication) => String::from("*"),
+        BinaryOp::Arithmetic(ArithBinOp::Plus) => String::from("+"),
+        BinaryOp::Compare(CmpBinOp::Eq) => String::from("=="),
+        BinaryOp::Compare(CmpBinOp::GEq) => String::from(">="),
+        BinaryOp::Compare(CmpBinOp::Gt) => String::from(">"),
+        BinaryOp::Compare(CmpBinOp::LEq) => String::from("<="),
+        BinaryOp::Compare(CmpBinOp::Lt) => String::from("<"),
+        BinaryOp::Compare(CmpBinOp::NEq) => String::from("!="),    
+    }
+}
+
+fn display_un_op(op: &UnaryOp) -> String {
+    match op {
+        UnaryOp::Negation => String::from("!"),
+        UnaryOp::Minus => String::from("-"),
     }
 }

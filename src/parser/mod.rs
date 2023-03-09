@@ -159,19 +159,20 @@ impl Parser {
                 line: last_line_number,
             })?;
             last_line_number = next_line.number;
+            let next_line_indentation = next_line.indentation;
 
-            if next_line.indentation < scope_indentation
-                && next_line.indentation as i32 <= outside_indentation
+            if next_line_indentation < scope_indentation
+                && next_line_indentation as i32 <= outside_indentation
             {
                 // end of scope
                 break;
-            } else if outside_indentation > 0 && next_line.indentation < scope_indentation {
+            } else if outside_indentation > 0 && next_line_indentation < scope_indentation {
                 // scope has not ended yet but has different indentation
                 return Err(self.produce_error(
                     ParserErrorKind::IndentationError {
                         msg: String::from("The indentation of a scope should be the same"),
                         expected: scope_indentation as i32,
-                        actual: line.indentation as i32,
+                        actual: next_line_indentation as i32,
                     },
                     last_line_number,
                 ));
@@ -669,7 +670,7 @@ impl Parser {
                 if next_line.indentation != indentation {
                     return Err(self.produce_error(
                         ParserErrorKind::IndentationError {
-                            msg: String::from("Indentation of else should be the same as if!"),
+                            msg: String::from("Indentation of else should be the same as if"),
                             expected: indentation as i32,
                             actual: next_line.indentation as i32,
                         },

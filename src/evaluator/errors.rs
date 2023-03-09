@@ -37,24 +37,21 @@ pub enum EvaluatorError {
 
 fn format_error(err: EvaluatorError, names: &[String]) -> String {
     match err {
-        // EvaluatorError::UnknownName(expression) => {
-        //     format!("Use of undeclared name in this scope:\n{:?}", expression)
-        // }
         EvaluatorError::FunctionExpected(expr) => {
-            format!("Expected function, actual expression is:\n{}", display_expr(expr, names))
+            format!("Expected function, actual expression is:\n\t{}", display_expr(expr, names))
         }
         EvaluatorError::ArgsAndParamsLengthsMismatch(expr) => format!(
-            "Wrong number of arguments provided to the functions:\n{}",
+            "Wrong number of arguments provided to the function:\n\t{}",
             display_expr(expr, names)
         ),
         EvaluatorError::InvalidUnaryOperation { msg, expr } => {
-            format!("Invalid operation in the expression:\n{}\n\n{}", display_expr(expr, names), msg)
+            format!("Invalid operation in the expression:\n\t{}\n\n{}", display_expr(expr, names), msg)
         }
         EvaluatorError::SideEffectInPureScope(expr) => {
-            format!("Expression produces side effect in pure scope:\n{}", display_expr(expr, names))
+            format!("Expression produces side effect in pure scope:\n\t{}", display_expr(expr, names))
         }
         EvaluatorError::ConditionShouldEvaluateToBoolean(expr) => {
-            format!("Expression was expected to evaluate to boolean:\n{}", display_expr(expr, names))
+            format!("If condition should evaluate to boolean in:\n\t{}", display_expr(expr, names))
         }
         EvaluatorError::ComparisonError {
             op,
@@ -81,11 +78,11 @@ fn format_error(err: EvaluatorError, names: &[String]) -> String {
             op, display_value(&value_1, names), display_value(&value_2, names)
         ),
         EvaluatorError::UnexpectedRead() => format!(
-            "Read call at invalid position. The only possible place for the read is as assignment expression in impure scope"
+            "Read call at invalid position. The only possible place for the read is in an assignment in impure scope"
         ),
         EvaluatorError::ErrorWithInfo { expr, error } => 
         format!(
-            "While evaluating expression {}\n{}", display_expr(expr, names), format_error(*error, names) 
+            "While evaluating expression:\n\t{}\n{}", display_expr(expr, names), format_error(*error, names) 
         ),
     }
 }
