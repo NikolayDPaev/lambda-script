@@ -32,15 +32,5 @@ mergesort = [list] ->
         split = splitList(list)
         merge(mergesort(left(split)), mergesort(right(split)))
 
-selectionsort = [list] ->
-    if empty(list) then list
-    else
-        maxElement = foldLeft(max, left(list), right(list))
-        withoutMax = filter([x] -> x != maxElement, list)
-        rest = selectionsort(withoutMax)
-        cons(maxElement, rest)
-
-
 list = range(0, 100)
-# printlnList(selectionsort(list))
 printlnList(mergesort(list))

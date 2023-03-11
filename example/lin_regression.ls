@@ -18,7 +18,7 @@ linRegression = [points] ->
     b = mean_y - a * mean_x
     cons(a, b)
 
-input = impure ->
+main = impure ->
     print("Enter number of points: ")
     n_str = read
     n = parseNumber(n_str)
@@ -43,4 +43,4 @@ input = impure ->
     print("b = ")
     println(right(result))
     
-input()
+main()
