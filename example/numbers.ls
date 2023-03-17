@@ -18,7 +18,7 @@ parseNumber = [string] ->
             head = left(string)
             if head == '.' then 
                 parse(right(string), n, 1)
-            else if ((head - '0') < 10) & ((head - '0') >= 0) then
+            else if (head - '0' < 10) & (head - '0' >= 0) then
                 digit = (left(string) - '0')
                 if digitsAfterPoint > 0 then
                     parse(right(string), (n * 10) + digit, digitsAfterPoint + 1)
@@ -39,7 +39,7 @@ intToString = [n] ->
     helper = [n, string] ->
         if n == 0 then string
         else
-            char = '0' + (n % 10)
+            char = '0' + n % 10
             helper(n // 10, cons(char, string))
     
     if n == 0 then "0"

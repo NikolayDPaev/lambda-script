@@ -27,7 +27,7 @@ bfsList = [tree] ->
 makeFloatsTree = [] ->
     helper = [n, depth] ->
         coeff = 10 ** depth
-        children = map([x] -> helper(n + (x / coeff), depth + 1), range(1, 10))
+        children = map([x] -> helper(n + x / coeff, depth + 1), range(1, 10))
         nodeCons(n, children)
     helper(0, 1)
 

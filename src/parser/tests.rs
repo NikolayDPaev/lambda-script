@@ -256,15 +256,15 @@ fn test_multiple_operation() {
             Token::False,
         ],
         Expression::BinaryOperation(
-            BinaryOp::Arithmetic(ArithBinOp::Plus),
-            Rc::new(Expression::Value(Value::Boolean(true))),
+            BinaryOp::Compare(CmpBinOp::Lt),
             Rc::new(Expression::BinaryOperation(
-                BinaryOp::Compare(CmpBinOp::Lt),
+                BinaryOp::Arithmetic(ArithBinOp::Plus),
+                Rc::new(Expression::Value(Value::Boolean(true))),
                 Rc::new(Expression::Left(Rc::new(Expression::Value(
                     Value::Boolean(false),
                 )))),
-                Rc::new(Expression::Value(Value::Boolean(false))),
             )),
+            Rc::new(Expression::Value(Value::Boolean(false))),
         ),
     );
 }
@@ -324,23 +324,23 @@ fn test_brackets_expression() {
             Token::RightBracket,
         ],
         Expression::BinaryOperation(
-            BinaryOp::Compare(CmpBinOp::GEq),
+            BinaryOp::Boolean(BoolBinOp::And),
             Rc::new(Expression::BinaryOperation(
-                BinaryOp::Arithmetic(ArithBinOp::Plus),
-                Rc::new(Expression::Value(Value::Boolean(true))),
-                Rc::new(Expression::Cons(
-                    Rc::new(Expression::Value(Value::Boolean(false))),
-                    Rc::new(Expression::Value(Value::Boolean(false))),
+                BinaryOp::Compare(CmpBinOp::GEq),
+                Rc::new(Expression::BinaryOperation(
+                    BinaryOp::Arithmetic(ArithBinOp::Plus),
+                    Rc::new(Expression::Value(Value::Boolean(true))),
+                    Rc::new(Expression::Cons(
+                        Rc::new(Expression::Value(Value::Boolean(false))),
+                        Rc::new(Expression::Value(Value::Boolean(false))),
+                    )),
                 )),
+                Rc::new(Expression::Value(Value::Boolean(true))),
             )),
             Rc::new(Expression::BinaryOperation(
-                BinaryOp::Boolean(BoolBinOp::And),
+                BinaryOp::Boolean(BoolBinOp::Or),
+                Rc::new(Expression::Value(Value::Boolean(false))),
                 Rc::new(Expression::Value(Value::Boolean(true))),
-                Rc::new(Expression::BinaryOperation(
-                    BinaryOp::Boolean(BoolBinOp::Or),
-                    Rc::new(Expression::Value(Value::Boolean(false))),
-                    Rc::new(Expression::Value(Value::Boolean(true))),
-                )),
             )),
         ),
     );

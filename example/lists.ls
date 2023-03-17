@@ -16,13 +16,13 @@ length = [list] ->
 
 map = [f, list] ->
     # no substitution errors because the evaluator
-    # work with unique identifiers, not names
+    # works with unique identifiers, not names
     foldRight([x, list] -> cons(f(x), list), nil, list)
 
 take = [n, list] ->
     if (n == 0) | empty(list) then
         nil
-    else 
+    else
         cons(left(list), take(n - 1, right(list)))
 
 nth = [n, list] ->
@@ -105,3 +105,10 @@ forEach = impure [f, xs] ->
     else
         f(left(xs))
         forEach(f, right(xs))
+
+applyOnUserInput = impure [printFun, xs] ->
+    if empty(xs) then nil
+    else
+        x = read
+        printFun(left(xs))
+        applyOnUserInput(printFun, right(xs))

@@ -14,4 +14,4 @@ factorialList = ->
 printlnList(take(10, fibList()))
 printlnList(take(10, factorialList()))
 
-printlnList(take(10, filter([x] -> (x % 2) == 0, genNaturalsFrom(0))))
+printlnList(take(10, filter([x] -> x % 2 == 0, genNaturalsFrom(0))))

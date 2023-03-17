@@ -55,7 +55,7 @@ impl Parser {
             filename: file_path.to_string_lossy().to_string(),
             file_path,
             next_ident: 0,
-            names: vec![]
+            names: vec![],
         }
     }
 
@@ -362,9 +362,9 @@ impl Parser {
         }
     }
 
-    // parses single expression
+    // parses single expression without operators
     // the expression can be on multiple lines
-    fn parse_expression(
+    fn parse_single_expression(
         &mut self,
         tokens: &mut Peekable<Iter<Token>>,
         line_num: u32,
@@ -417,7 +417,7 @@ impl Parser {
             Token::True => Expression::Value(Value::Boolean(true)),
             Token::False => Expression::Value(Value::Boolean(false)),
             Token::Operation(Op::Minus) => {
-                let expr = self.parse_expression(
+                let expr = self.parse_single_expression(
                     tokens,
                     line_num,
                     indentation,
@@ -428,7 +428,7 @@ impl Parser {
                 Expression::UnaryOperation(UnaryOp::Minus, Rc::new(expr))
             }
             Token::Operation(Op::Negation) => {
-                let expr = self.parse_expression(
+                let expr = self.parse_single_expression(
                     tokens,
                     line_num,
                     indentation,
@@ -741,20 +741,8 @@ impl Parser {
             }
         };
 
-        // check if the next token is operator or the parsed expression is called as a function
+        // check if the expression is called as a function
         match tokens.peek() {
-            Some(Token::Operation(op)) => {
-                tokens.next().unwrap();
-                let expr_2 = self.parse_expression(
-                    tokens,
-                    line_num,
-                    indentation,
-                    pure,
-                    imported,
-                    ident_map,
-                )?;
-                parse_binary_operation(op, expr, expr_2, line_num, &self.filename)
-            }
             Some(Token::LeftBracket) => {
                 tokens.next().unwrap();
                 let expr_vec =
@@ -766,6 +754,87 @@ impl Parser {
             }
             _ => Ok(expr),
         }
+    }
+
+    // Parses expressions with operator precedence
+    // pseudo code from wikipedia: https://en.wikipedia.org/wiki/Operator-precedence_parser
+    fn parse_expression_with_precedence(
+        &mut self,
+        tokens: &mut Peekable<Iter<Token>>,
+        line_num: u32,
+        indentation: u16,
+        pure: bool,
+        imported: List<PathBuf>,
+        ident_map: HashTrieMap<String, u32>,
+        mut left: Expression,
+        min_precedence: u8,
+    ) -> Result<Expression, ParserError> {
+        let mut lookahead = tokens.peek();
+        loop {
+            match lookahead {
+                Some(Token::Operation(op)) if op.precedence() >= min_precedence => {
+                    tokens.next().unwrap();
+                    let mut right = self.parse_single_expression(
+                        tokens,
+                        line_num,
+                        indentation,
+                        pure,
+                        imported.clone(),
+                        ident_map.clone(),
+                    )?;
+                    lookahead = tokens.peek();
+
+                    while matches!(lookahead, Some(Token::Operation(op_2)) if op_2.precedence() > op.precedence())
+                    {
+                        right = self.parse_expression_with_precedence(
+                            tokens,
+                            line_num,
+                            indentation,
+                            pure,
+                            imported.clone(),
+                            ident_map.clone(),
+                            right,
+                            op.precedence() + 1,
+                        )?;
+                        lookahead = tokens.peek();
+                    }
+                    left = parse_binary_operation(op, left, right, line_num, &self.filename)?;
+                }
+                _ => break
+            }
+        }
+
+        return Ok(left);
+    }
+
+    // parses expression with operators
+    fn parse_expression(
+        &mut self,
+        tokens: &mut Peekable<Iter<Token>>,
+        line_num: u32,
+        indentation: u16,
+        pure: bool,
+        imported: List<PathBuf>,
+        ident_map: HashTrieMap<String, u32>,
+    ) -> Result<Expression, ParserError> {
+        let expr = self.parse_single_expression(
+            tokens,
+            line_num,
+            indentation,
+            pure,
+            imported.clone(),
+            ident_map.clone(),
+        )?;
+        self.parse_expression_with_precedence(
+            tokens,
+            line_num,
+            indentation,
+            pure,
+            imported,
+            ident_map,
+            expr,
+            0,
+        )
     }
 
     // parses "name(arg)" function call
