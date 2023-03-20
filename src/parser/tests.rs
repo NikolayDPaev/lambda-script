@@ -441,7 +441,7 @@ fn test_function_multiple_args() {
             number: 2,
             indentation: 1,
             tokens: vec![
-                Token::Name(String::from("a")),
+                Token::Name(String::from("a")), // shadowing of a
                 Token::Assignment,
                 Token::Number(String::from("123")),
             ],
@@ -470,7 +470,7 @@ fn test_function_multiple_args() {
                         params: vec![1, 2],
                         scope: Box::new(Scope::Pure {
                             assignments: vec![(
-                                3,
+                                1,
                                 Rc::new(Expression::Value(Value::Number(Number::Integer(123))))
                             )],
                             expression: Rc::new(Expression::Value(Value::Boolean(true)))
@@ -647,10 +647,10 @@ fn test_if_else() {
                         then_scope: Box::new(Scope::Impure {
                             lines: vec![
                                 ImpureLine::Assignment(
-                                    1,
+                                    0,
                                     Rc::new(Expression::Value(Value::Boolean(true)))
                                 ),
-                                ImpureLine::Expression(Rc::new(Expression::Ident(1)))
+                                ImpureLine::Expression(Rc::new(Expression::Ident(0)))
                             ]
                         }),
                         else_scope: Box::new(Scope::Impure {

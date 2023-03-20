@@ -71,7 +71,8 @@ impl Parser {
     }
 
     // returns new unique identifier
-    fn new_ident(&mut self) -> u32 {
+    fn new_ident(&mut self, name: &str) -> u32 {
+        self.names.push(name.to_owned());
         let ret = self.next_ident;
         self.next_ident += 1;
         ret
@@ -324,8 +325,16 @@ impl Parser {
             }
             [Token::Name(string), Token::Assignment, rest @ ..] => {
                 let mut iter = rest.iter().peekable();
-                let ident = self.new_ident();
-                self.names.push(string.to_owned());
+                // if name shadowing then replace the name with the old identifier
+                // search the position in the names vector, starting from the end, because usually
+                // names that have been introduced not long ago are shadowed
+                let ident =
+                    if let Some(ident) = ident_map.get(string){
+                        *ident
+                    } else {
+                        self.new_ident(string)
+                    };
+
                 let new_map = ident_map.insert(string.to_string(), ident);
                 let expression = self.parse_expression(
                     &mut iter,
@@ -800,7 +809,7 @@ impl Parser {
                     }
                     left = parse_binary_operation(op, left, right, line_num, &self.filename)?;
                 }
-                _ => break
+                _ => break,
             }
         }
 
@@ -960,8 +969,7 @@ impl Parser {
             match token {
                 Token::RightBoxBracket => return Ok((vec, ident_map)),
                 Token::Name(string) => {
-                    let ident = self.new_ident();
-                    self.names.push(string.to_owned());
+                    let ident = self.new_ident(string);
                     ident_map = ident_map.insert(string.to_string(), ident);
                     vec.push(ident);
                     match tokens.peek() {
