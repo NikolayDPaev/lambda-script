@@ -20,14 +20,14 @@ linRegression = [points] ->
 
 main = impure ->
     print("Enter number of points: ")
-    n_str = read
+    n_str = read()
     n = parseNumber(n_str)
 
     readTuple = impure ->
         print("x: ")
-        x_str = read
+        x_str = read()
         print("y: ")
-        y_str = read
+        y_str = read()
         cons(parseNumber(x_str), parseNumber(y_str))
 
     readList = impure [n] ->
