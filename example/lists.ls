@@ -109,6 +109,6 @@ forEach = impure [f, xs] ->
 applyOnUserInput = impure [printFun, xs] ->
     if empty(xs) then nil
     else
-        x = read
+        x = read()
         printFun(left(xs))
         applyOnUserInput(printFun, right(xs))

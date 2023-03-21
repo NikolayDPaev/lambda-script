@@ -52,7 +52,7 @@ prints to stdout
 - **Impure**: can have multiple expressions each evaluated eagerly. Print and read calls are impure.
 
 Built-in functions:
- - ```read``` reads line from the std in and returns list of characters. The only valid place for this expression is in assignment.
+ - ```read()``` reads line from the std in and returns list of characters. The only valid place for this expression is in assignment.
  - ```print(<expr>)```  prints value to std out
  - ```left(<expr>)``` if expression is cons or tuple, returns left element
  - ```right(<expr>)``` if expression is cons or tuple, returns right element
@@ -98,7 +98,7 @@ The global scope - the lines without indentation - is impure
 ## Assignments
 ```
 <name> = <expression>
-<name> = read
+<name> = read()
 ```
 ## Expressions
 

@@ -2,7 +2,7 @@ import once "numbers.ls" # parseNumber
 
 actual = 12
 guess = impure ->
-    input = read
+    input = read()
     num = parseNumber(input)
     if actual == num then
         println("Success")
