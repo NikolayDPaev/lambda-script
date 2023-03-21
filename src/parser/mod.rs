@@ -182,7 +182,6 @@ impl Parser {
         ident_map = self.parse_line(
             &line,
             &mut lines,
-            scope_indentation,
             pure,
             &mut already_parsed_expr,
             imported.clone(),
@@ -229,7 +228,6 @@ impl Parser {
                 ident_map = self.parse_line(
                     &line,
                     &mut lines,
-                    scope_indentation,
                     pure,
                     &mut already_parsed_expr,
                     imported.clone(),
@@ -329,7 +327,6 @@ impl Parser {
         &mut self,
         line: &Line,
         lines: &mut Vec<FunctionLine>,
-        indentation: u16,
         pure: bool,
         already_parsed_expr: &mut bool,
         imported: List<PathBuf>,
@@ -365,7 +362,6 @@ impl Parser {
                 let expression = self.parse_expression(
                     &mut iter,
                     line,
-                    indentation,
                     pure,
                     imported,
                     new_map.clone(),
@@ -399,7 +395,6 @@ impl Parser {
                 let expression = self.parse_expression(
                     &mut iter,
                     line,
-                    indentation,
                     pure,
                     imported,
                     ident_map.clone(),
@@ -427,7 +422,6 @@ impl Parser {
         &mut self,
         tokens: &mut Peekable<Enumerate<Iter<Token>>>,
         line: &Line,
-        indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
         mut ident_map: HashTrieMap<String, u32>,
@@ -445,7 +439,6 @@ impl Parser {
                         let expr_vec = self.parse_args_list(
                             tokens,
                             line,
-                            indentation,
                             pure,
                             imported.clone(),
                             ident_map.clone(),
@@ -486,7 +479,6 @@ impl Parser {
                 let expr = self.parse_single_expression(
                     tokens,
                     line,
-                    indentation,
                     pure,
                     imported.clone(),
                     ident_map.clone(),
@@ -497,7 +489,6 @@ impl Parser {
                 let expr = self.parse_single_expression(
                     tokens,
                     line,
-                    indentation,
                     pure,
                     imported.clone(),
                     ident_map.clone(),
@@ -509,7 +500,6 @@ impl Parser {
                 let (expr_1, expr_2) = self.parse_built_in_binary_function_call(
                     tokens,
                     line,
-                    indentation,
                     pure,
                     imported.clone(),
                     ident_map.clone(),
@@ -519,7 +509,6 @@ impl Parser {
             Token::Left => Expression::Left(Rc::new(self.parse_built_in_unary_function_call(
                 tokens,
                 line,
-                indentation,
                 pure,
                 imported.clone(),
                 ident_map.clone(),
@@ -527,7 +516,6 @@ impl Parser {
             Token::Right => Expression::Right(Rc::new(self.parse_built_in_unary_function_call(
                 tokens,
                 line,
-                indentation,
                 pure,
                 imported.clone(),
                 ident_map.clone(),
@@ -535,7 +523,6 @@ impl Parser {
             Token::Empty => Expression::Empty(Rc::new(self.parse_built_in_unary_function_call(
                 tokens,
                 line,
-                indentation,
                 pure,
                 imported.clone(),
                 ident_map.clone(),
@@ -544,7 +531,6 @@ impl Parser {
                 expr: Rc::new(self.parse_built_in_unary_function_call(
                     tokens,
                     line,
-                    indentation,
                     pure,
                     imported.clone(),
                     ident_map.clone(),
@@ -555,7 +541,6 @@ impl Parser {
                 expr: Rc::new(self.parse_built_in_unary_function_call(
                     tokens,
                     line,
-                    indentation,
                     pure,
                     imported.clone(),
                     ident_map.clone(),
@@ -592,7 +577,6 @@ impl Parser {
                     let expr = self.parse_expression(
                         tokens,
                         line,
-                        indentation,
                         false,
                         imported.clone(),
                         ident_map.clone(),
@@ -601,7 +585,7 @@ impl Parser {
                 } else {
                     scope = {
                         let (scope, _) = self.parse_scope(
-                            indentation.into(),
+                            line.indentation.into(),
                             false,
                             imported.clone(),
                             ident_map.clone(),
@@ -619,7 +603,6 @@ impl Parser {
                     let expr = self.parse_expression(
                         tokens,
                         line,
-                        indentation,
                         pure,
                         imported.clone(),
                         ident_map.clone(),
@@ -628,7 +611,7 @@ impl Parser {
                 } else {
                     scope = {
                         let (scope, _) = self.parse_scope(
-                            indentation.into(),
+                            line.indentation.into(),
                             true,
                             imported.clone(),
                             ident_map.clone(),
@@ -650,7 +633,6 @@ impl Parser {
                     let expr = self.parse_expression(
                         tokens,
                         line,
-                        indentation,
                         pure,
                         imported.clone(),
                         ident_map,
@@ -659,7 +641,7 @@ impl Parser {
                 } else {
                     scope = {
                         let (scope, _) = self.parse_scope(
-                            indentation.into(),
+                            line.indentation.into(),
                             true,
                             imported.clone(),
                             ident_map,
@@ -675,7 +657,6 @@ impl Parser {
                 let condition = Rc::new(self.parse_expression(
                     tokens,
                     line,
-                    indentation,
                     pure,
                     imported.clone(),
                     ident_map.clone(),
@@ -688,7 +669,6 @@ impl Parser {
                     let expr = self.parse_expression(
                         tokens,
                         line,
-                        indentation,
                         pure,
                         imported.clone(),
                         ident_map.clone(),
@@ -705,7 +685,6 @@ impl Parser {
                         let expr = self.parse_expression(
                             tokens,
                             line,
-                            indentation,
                             pure,
                             imported,
                             ident_map,
@@ -722,7 +701,7 @@ impl Parser {
                     // if 'then expression' is not on the same line, parse scope
                     then_scope = {
                         let (scope, _) = self.parse_scope(
-                            indentation.into(),
+                            line.indentation.into(),
                             pure,
                             imported.clone(),
                             ident_map.clone(),
@@ -736,11 +715,11 @@ impl Parser {
                     .next()
                     .ok_or(self.produce_error(ParserErrorKind::UnexpectedEOF, None, 0))?
                     .map_err(|_| self.produce_error(ParserErrorKind::LexerError, None, 0))?;
-                if next_line.indentation != indentation {
+                if next_line.indentation != line.indentation {
                     return Err(self.produce_error(
                         ParserErrorKind::IndentationError {
                             msg: String::from("Indentation of else should be the same as if"),
-                            expected: indentation as i32,
+                            expected: line.indentation as i32,
                             actual: next_line.indentation as i32,
                         },
                         Some(&next_line),
@@ -766,7 +745,6 @@ impl Parser {
                     let expr = self.parse_expression(
                         &mut next_line_tokens,
                         &next_line,
-                        next_line.indentation,
                         pure,
                         imported.clone(),
                         ident_map.clone(),
@@ -776,7 +754,7 @@ impl Parser {
                     // if not on the same line then parse scope
                     else_scope = {
                         let (scope, _) = self.parse_scope(
-                            indentation.into(),
+                            line.indentation.into(),
                             pure,
                             imported.clone(),
                             ident_map.clone(),
@@ -795,7 +773,6 @@ impl Parser {
                 let expr = self.parse_expression(
                     tokens,
                     line,
-                    indentation,
                     pure,
                     imported.clone(),
                     ident_map.clone(),
@@ -824,7 +801,7 @@ impl Parser {
             Some((_, Token::LeftBracket)) => {
                 tokens.next().unwrap();
                 let expr_vec =
-                    self.parse_args_list(tokens, line, indentation, pure, imported, ident_map)?;
+                    self.parse_args_list(tokens, line, pure, imported, ident_map)?;
                 Ok(Expression::FunctionCall {
                     expr: Rc::new(expr),
                     args: expr_vec,
@@ -840,7 +817,6 @@ impl Parser {
         &mut self,
         tokens: &mut Peekable<Enumerate<Iter<Token>>>,
         line: &Line,
-        indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
         ident_map: HashTrieMap<String, u32>,
@@ -855,7 +831,6 @@ impl Parser {
                     let mut right = self.parse_single_expression(
                         tokens,
                         line,
-                        indentation,
                         pure,
                         imported.clone(),
                         ident_map.clone(),
@@ -872,7 +847,6 @@ impl Parser {
                                 right = self.parse_expression_with_precedence(
                                     tokens,
                                     line,
-                                    indentation,
                                     pure,
                                     imported.clone(),
                                     ident_map.clone(),
@@ -905,7 +879,6 @@ impl Parser {
         &mut self,
         tokens: &mut Peekable<Enumerate<Iter<Token>>>,
         line: &Line,
-        indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
         ident_map: HashTrieMap<String, u32>,
@@ -913,7 +886,6 @@ impl Parser {
         let expr = self.parse_single_expression(
             tokens,
             line,
-            indentation,
             pure,
             imported.clone(),
             ident_map.clone(),
@@ -921,7 +893,6 @@ impl Parser {
         self.parse_expression_with_precedence(
             tokens,
             line,
-            indentation,
             pure,
             imported,
             ident_map,
@@ -935,7 +906,6 @@ impl Parser {
         &mut self,
         tokens: &mut Peekable<Enumerate<Iter<Token>>>,
         line: &Line,
-        indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
         ident_map: HashTrieMap<String, u32>,
@@ -946,7 +916,7 @@ impl Parser {
             ParserErrorKind::LeftBracketExpected,
             line,
         )?;
-        let expr = self.parse_expression(tokens, line, indentation, pure, imported, ident_map)?;
+        let expr = self.parse_expression(tokens, line, pure, imported, ident_map)?;
         self.assert_next_token(
             tokens,
             Token::RightBracket,
@@ -961,7 +931,6 @@ impl Parser {
         &mut self,
         tokens: &mut Peekable<Enumerate<Iter<Token>>>,
         line: &Line,
-        indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
         ident_map: HashTrieMap<String, u32>,
@@ -975,13 +944,12 @@ impl Parser {
         let expr_1 = self.parse_expression(
             tokens,
             line,
-            indentation,
             pure,
             imported.clone(),
             ident_map.clone(),
         )?;
         self.assert_next_token(tokens, Token::Comma, ParserErrorKind::CommaExpected, line)?;
-        let expr_2 = self.parse_expression(tokens, line, indentation, pure, imported, ident_map)?;
+        let expr_2 = self.parse_expression(tokens, line, pure, imported, ident_map)?;
         self.assert_next_token(
             tokens,
             Token::RightBracket,
@@ -996,7 +964,6 @@ impl Parser {
         &mut self,
         tokens: &mut Peekable<Enumerate<Iter<Token>>>,
         line: &Line,
-        indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
         ident_map: HashTrieMap<String, u32>,
@@ -1019,7 +986,6 @@ impl Parser {
                     let expr = self.parse_expression(
                         tokens,
                         line,
-                        indentation,
                         pure,
                         imported.clone(),
                         ident_map.clone(),
