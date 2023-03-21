@@ -1,4 +1,6 @@
-use crate::lexer::enums::Token;
+use std::fmt;
+
+use crate::lexer::{enums::Token, Line};
 
 #[derive(Debug, PartialEq)]
 pub enum ParserErrorKind {
@@ -26,7 +28,7 @@ pub enum ParserErrorKind {
     AssignmentError {
         msg: String,
     },
-    UnbalancedBracketsError,
+    ClosingBracketExpected,
     NumberParseError,
     CharParseError,
     FilenameStringExpected,
@@ -45,22 +47,42 @@ pub enum ParserErrorKind {
 pub struct ParserError {
     pub kind: ParserErrorKind,
     pub filename: String,
-    pub line: u32,
+    pub line: Option<Line>,
+    pub token_pos: usize,
 }
 
-impl ParserError {
-    pub fn get_message(self) -> String {
-        let message = match self.kind {
+fn show_error_token(indentation: u16, tokens: &[Token], token_index: usize) -> String {
+    let mut error_token_index: usize = indentation.into();
+    let mut line = std::iter::repeat(" ")
+        .take(indentation.into())
+        .collect::<String>();
+
+    for i in 0..tokens.len() {
+        let token_string = format!("{}", tokens[i]);
+        if i < token_index {
+            error_token_index += token_string.len();
+        }
+        line.push_str(&token_string);
+    }
+
+    format!(
+        "{}\n{arrow: >pos$}",
+        line,
+        arrow = '^',
+        pos = error_token_index + 1
+    )
+}
+
+impl fmt::Display for ParserError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let message = match &self.kind {
             ParserErrorKind::PeekError => format!("Error peeking next token"),
             ParserErrorKind::LexerError => format!("Error in the underlying lexer"),
             ParserErrorKind::IndentationError {
                 msg,
                 expected,
                 actual,
-            } => format!(
-                "{}, expected: {}, actual: {}",
-                msg, expected, actual
-            ),
+            } => format!("{}, expected: {}, actual: {}", msg, expected, actual),
             ParserErrorKind::UnknownNameError { name } => format!("Unknown name: {}", name),
             ParserErrorKind::CannotImportFile {
                 import_filename,
@@ -83,15 +105,15 @@ impl ParserError {
             ParserErrorKind::AssignmentError { msg } => {
                 format!("{}", msg)
             }
-            ParserErrorKind::UnbalancedBracketsError => {
-                format!("Unbalanced brackets")
+            ParserErrorKind::ClosingBracketExpected => {
+                format!("Closing bracket expected")
             }
             ParserErrorKind::NumberParseError => {
                 format!("Error parsing number")
             }
             ParserErrorKind::CharParseError => format!("Error parsing char"),
             ParserErrorKind::FilenameStringExpected => {
-                format!("Expected filename string ")
+                format!("Expected single filename string ")
             }
             ParserErrorKind::NameExpected => format!("Expected name"),
             ParserErrorKind::ArrowExpected => format!("Expected arrow"),
@@ -110,9 +132,16 @@ impl ParserError {
             ParserErrorKind::OpError => format!("Unexpected operation"),
         };
 
-        format!(
-            "Error parsing file: {}\nline {}:\n\t{}\n",
-            self.filename, self.line, message
-        )
+        match &self.line {
+            Some(line) => write!(
+                fmt,
+                "Error parsing file: {}\nline {}:\n\n{} {}\n",
+                self.filename,
+                line.number,
+                show_error_token(line.indentation, &line.tokens, self.token_pos),
+                message
+            ),
+            None => write!(fmt, "Error parsing file: {}\n{}\n", self.filename, message),
+        }
     }
 }

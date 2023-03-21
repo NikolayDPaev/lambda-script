@@ -58,10 +58,7 @@ where
                         .unwrap(),
                 }
             }
-            Err(e) => self
-                .output
-                .write_fmt(format_args!("{}", e.get_message()))
-                .unwrap(),
+            Err(e) => self.output.write_fmt(format_args!("{}", e)).unwrap(),
         };
         return 1;
     }

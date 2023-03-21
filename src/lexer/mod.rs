@@ -52,7 +52,7 @@ macro_rules! read_until_single_quotes_into {
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Line {
     pub number: u32,
     pub indentation: u16,
@@ -226,7 +226,7 @@ pub fn lines<T: Read + 'static>(reader: T) -> LinesIterator {
             .filter_map(|(line_num, result)| {
                 match result.map(|line| Line::new(line, line_num as u32 + 1)) {
                     Ok(line) if line.tokens.is_empty() => None,
-                    line_res @ _ => Some(line_res)
+                    line_res @ _ => Some(line_res),
                 }
             }),
     )

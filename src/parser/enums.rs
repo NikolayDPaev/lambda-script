@@ -30,8 +30,10 @@ pub enum Expression {
     Thunk {
         expr: RefCell<Rc<Expression>>,
         memoized: RefCell<bool>,
-        #[educe(Debug(method = "fmt"))] env: HashTrieMap<u32, Rc<Expression>>,
-        #[educe(Debug(ignore))] pure: bool,
+        #[educe(Debug(method = "fmt"))]
+        env: HashTrieMap<u32, Rc<Expression>>,
+        #[educe(Debug(ignore))]
+        pure: bool,
     },
     FunctionCall {
         expr: Rc<Expression>,
@@ -181,8 +183,13 @@ pub fn display_value(value: &Value, names: &[String]) -> String {
             params
                 .into_iter()
                 .map(|ident| names[*ident as usize].to_owned())
-                .fold(String::new(), |mut acc, x| {acc.push_str(&x); acc.push_str(", "); acc})
-                .strip_suffix(", ").unwrap_or("")
+                .fold(String::new(), |mut acc, x| {
+                    acc.push_str(&x);
+                    acc.push_str(", ");
+                    acc
+                })
+                .strip_suffix(", ")
+                .unwrap_or("")
         ),
     }
 }
@@ -191,7 +198,7 @@ pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
     match expr.as_ref() {
         Expression::Value(value) => format!("{}", display_value(value, names)),
         Expression::Ident(ident) => format!("{}", names[*ident as usize]),
-        Expression::Thunk{expr, env, ..} => {
+        Expression::Thunk { expr, env, .. } => {
             // transforms refcell<rc<expression>> into rc<expression>
             let expr_rc = expr.replace(Rc::new(Expression::Value(Value::Nil)));
             format!(
@@ -205,9 +212,18 @@ pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
                             _ => false,
                         }
                     })
-                    .map(|(ident, expr)| format!("({}: {})", names[*ident as usize].clone(), display_expr(expr.clone(), names)))
-                    .fold(String::new(), |mut acc, x| {acc.push_str(&x); acc.push_str(", "); acc})
-                    .strip_suffix(", ").unwrap_or("")
+                    .map(|(ident, expr)| format!(
+                        "({}: {})",
+                        names[*ident as usize].clone(),
+                        display_expr(expr.clone(), names)
+                    ))
+                    .fold(String::new(), |mut acc, x| {
+                        acc.push_str(&x);
+                        acc.push_str(", ");
+                        acc
+                    })
+                    .strip_suffix(", ")
+                    .unwrap_or("")
             )
         }
         Expression::FunctionCall { expr, args } => format!(
@@ -215,8 +231,13 @@ pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
             display_expr(expr.clone(), names),
             args.into_iter()
                 .map(|expr| display_expr(expr.clone(), names))
-                .fold(String::new(), |mut acc, x| {acc.push_str(&x); acc.push_str(", "); acc})
-                .strip_suffix(", ").unwrap_or("")
+                .fold(String::new(), |mut acc, x| {
+                    acc.push_str(&x);
+                    acc.push_str(", ");
+                    acc
+                })
+                .strip_suffix(", ")
+                .unwrap_or("")
         ),
         Expression::ReadCall => format!("read"),
         Expression::PrintCall { expr, newline: _ } => {
@@ -245,7 +266,10 @@ pub fn display_expr(expr: Rc<Expression>, names: &[String]) -> String {
             condition,
             then_scope: _,
             else_scope: _,
-        } => format!("if {} then .. else ..", display_expr(condition.clone(), names)),
+        } => format!(
+            "if {} then .. else ..",
+            display_expr(condition.clone(), names)
+        ),
     }
 }
 
@@ -266,7 +290,7 @@ fn display_bin_op(op: &BinaryOp) -> String {
         BinaryOp::Compare(CmpBinOp::Gt) => String::from(">"),
         BinaryOp::Compare(CmpBinOp::LEq) => String::from("<="),
         BinaryOp::Compare(CmpBinOp::Lt) => String::from("<"),
-        BinaryOp::Compare(CmpBinOp::NEq) => String::from("!="),    
+        BinaryOp::Compare(CmpBinOp::NEq) => String::from("!="),
     }
 }
 

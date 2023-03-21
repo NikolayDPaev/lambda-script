@@ -22,14 +22,27 @@ fn test_one_line_expression(tokens: Vec<Token>, expression: Expression) {
     );
 }
 
-fn test_one_line_expression_error(tokens: Vec<Token>, error: ParserError) {
-    let lines: Vec<Result<Line, std::io::Error>> = vec![Ok(Line {
+fn test_one_line_expression_error(
+    tokens: Vec<Token>,
+    error_kind: ParserErrorKind,
+    error_pos: usize,
+) {
+    let line = Line {
         number: 1,
         indentation: 0,
         tokens,
-    })];
-    let result = Parser::new(Box::new(lines.into_iter()), PathBuf::new()).parse_outside_scope();
-    assert_eq!(result, Err(error));
+    };
+    let result = Parser::new(Box::new(vec![Ok(line.clone())].into_iter()), PathBuf::new())
+        .parse_outside_scope();
+    assert_eq!(
+        result,
+        Err(ParserError {
+            kind: error_kind,
+            filename: String::from(""),
+            line: Some(line),
+            token_pos: error_pos
+        },)
+    );
 }
 
 #[test]
@@ -55,11 +68,8 @@ fn test_values() {
     );
     test_one_line_expression_error(
         vec![Token::Number(String::from("1a23"))],
-        ParserError {
-            kind: NumberParseError,
-            filename: String::from(""),
-            line: 1,
-        },
+        NumberParseError,
+        0,
     );
     test_one_line_expression(
         vec![Token::Number(String::from("123.5"))],
@@ -67,32 +77,15 @@ fn test_values() {
     );
     test_one_line_expression_error(
         vec![Token::Number(String::from("1.a23"))],
-        ParserError {
-            kind: NumberParseError,
-            filename: String::from(""),
-            line: 1,
-        },
+        NumberParseError,
+        0,
     );
     test_one_line_expression(
         vec![Token::Char(String::from("a"))],
         Expression::Value(Value::Char('a')),
     );
-    test_one_line_expression_error(
-        vec![Token::Char(String::from("abc"))],
-        ParserError {
-            kind: CharParseError,
-            filename: String::from(""),
-            line: 1,
-        },
-    );
-    test_one_line_expression_error(
-        vec![Token::Char(String::from(""))],
-        ParserError {
-            kind: CharParseError,
-            filename: String::from(""),
-            line: 1,
-        },
-    );
+    test_one_line_expression_error(vec![Token::Char(String::from("abc"))], CharParseError, 0);
+    test_one_line_expression_error(vec![Token::Char(String::from(""))], CharParseError, 0);
     test_one_line_expression(vec![Token::True], Expression::Value(Value::Boolean(true)));
     test_one_line_expression(vec![Token::False], Expression::Value(Value::Boolean(false)));
     test_one_line_expression(vec![Token::Nil], Expression::Value(Value::Nil));
@@ -122,11 +115,8 @@ fn test_builtin_functions() {
             Token::True,
             Token::RightBracket,
         ],
-        ParserError {
-            kind: CommaExpected,
-            filename: String::from(""),
-            line: 1,
-        },
+        CommaExpected,
+        3,
     );
 
     test_one_line_expression(
@@ -175,16 +165,22 @@ fn test_builtin_functions() {
         Expression::Right(Rc::new(Expression::Value(Value::Boolean(true)))),
     );
 
-    test_one_line_expression_error(
-        vec![Token::Right],
-        ParserError {
-            kind: LeftBracketExpected,
-            filename: String::from(""),
-            line: 1,
-        },
-    );
+    test_one_line_expression_error(vec![Token::Right], LeftBracketExpected, 1);
 
-    test_one_line_expression(vec![Token::Read], Expression::ReadCall);
+    test_one_line_expression(
+        vec![Token::Read, Token::LeftBracket, Token::RightBracket],
+        Expression::ReadCall,
+    );
+    test_one_line_expression_error(
+        vec![
+            Token::Read,
+            Token::LeftBracket,
+            Token::RightBracket,
+            Token::True,
+        ],
+        UnexpectedToken { token: Token::True },
+        3,
+    );
 }
 
 #[test]

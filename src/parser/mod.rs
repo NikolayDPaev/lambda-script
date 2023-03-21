@@ -3,6 +3,7 @@ pub mod errors;
 #[cfg(test)]
 mod tests;
 use std::fs::File;
+use std::iter::Enumerate;
 use std::iter::Peekable;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -22,15 +23,6 @@ const OUTSIDE_INDENTATION: i32 = -1;
 macro_rules! new_binary_operation {
     ($op:expr, $expr_1:expr, $expr_2:expr) => {
         Expression::BinaryOperation($op, Rc::new($expr_1), Rc::new($expr_2))
-    };
-}
-
-macro_rules! assert_next_token {
-    ($tokens:expr, $token:pat, $error:expr) => {
-        match $tokens.next() {
-            Some($token) => (),
-            _ => return Err($error),
-        };
     };
 }
 
@@ -84,7 +76,8 @@ impl Parser {
         &mut self,
         path: PathBuf,
         imported: List<PathBuf>,
-        line_num: u32,
+        line: &Line,
+        token: usize,
     ) -> Result<(bool, List<PathBuf>), ParserError> {
         let canonical_path = path.canonicalize().map_err(|err| {
             self.produce_error(
@@ -92,7 +85,8 @@ impl Parser {
                     import_filename: path.to_string_lossy().to_string(),
                     error_message: err.to_string(),
                 },
-                line_num,
+                Some(line),
+                token,
             )
         })?;
 
@@ -104,12 +98,55 @@ impl Parser {
     }
 
     // returns error with the specified error kind
-    fn produce_error(&self, kind: ParserErrorKind, line: u32) -> ParserError {
+    fn produce_error(
+        &self,
+        kind: ParserErrorKind,
+        line: Option<&Line>,
+        token_pos: usize,
+    ) -> ParserError {
         ParserError {
             kind,
             filename: self.filename.clone(),
-            line,
+            line: line.cloned(),
+            token_pos,
         }
+    }
+
+    fn assert_next_token(
+        &self,
+        tokens: &mut Peekable<Enumerate<Iter<Token>>>,
+        token: Token,
+        error_kind: ParserErrorKind,
+        line: &Line,
+    ) -> Result<(), ParserError> {
+        match tokens.next() {
+            Some((_, actual_token)) if *actual_token == token => (),
+            Some((token_pos, _)) => {
+                return Err(self.produce_error(error_kind, Some(line), token_pos))
+            }
+            None => return Err(self.produce_error(error_kind, Some(line), line.tokens.len())),
+        };
+        Ok(())
+    }
+
+    fn assert_no_more_tokens(
+        &self,
+        tokens: &mut Peekable<Enumerate<Iter<Token>>>,
+        line: &Line,
+    ) -> Result<(), ParserError> {
+        match tokens.next() {
+            None => (),
+            Some((token_pos, token)) => {
+                return Err(self.produce_error(
+                    ParserErrorKind::UnexpectedToken {
+                        token: token.clone(),
+                    },
+                    Some(line),
+                    token_pos,
+                ))
+            }
+        };
+        Ok(())
     }
 
     fn parse_scope(
@@ -120,15 +157,13 @@ impl Parser {
         mut ident_map: HashTrieMap<String, u32>,
     ) -> Result<(Scope, HashTrieMap<String, u32>), ParserError> {
         let mut lines: Vec<FunctionLine> = vec![];
-        let mut last_line_number;
+        let mut already_parsed_expr = false;
 
         let line = self
             .next_lines
             .next()
-            .ok_or(self.produce_error(ParserErrorKind::UnexpectedEOF, 0))?
-            .map_err(|_| self.produce_error(ParserErrorKind::LexerError, 0))?;
-
-        last_line_number = line.number;
+            .ok_or(self.produce_error(ParserErrorKind::UnexpectedEOF, None, 0))?
+            .map_err(|_| self.produce_error(ParserErrorKind::LexerError, None, 0))?;
 
         let scope_indentation = line.indentation;
         if scope_indentation as i32 <= outside_indentation {
@@ -138,7 +173,8 @@ impl Parser {
                     expected: outside_indentation + 1,
                     actual: outside_indentation,
                 },
-                line.number,
+                Some(&line),
+                0,
             ));
         }
 
@@ -148,6 +184,7 @@ impl Parser {
             &mut lines,
             scope_indentation,
             pure,
+            &mut already_parsed_expr,
             imported.clone(),
             ident_map,
         )?;
@@ -157,9 +194,9 @@ impl Parser {
             let next_line = line_result.as_ref().map_err(|_| ParserError {
                 kind: ParserErrorKind::PeekError,
                 filename: self.filename.clone(),
-                line: last_line_number,
+                line: None,
+                token_pos: 0,
             })?;
-            last_line_number = next_line.number;
             let next_line_indentation = next_line.indentation;
 
             if next_line_indentation < scope_indentation
@@ -169,20 +206,23 @@ impl Parser {
                 break;
             } else if outside_indentation > 0 && next_line_indentation < scope_indentation {
                 // scope has not ended yet but has different indentation
+                let next_line = next_line.clone();
                 return Err(self.produce_error(
                     ParserErrorKind::IndentationError {
                         msg: String::from("The indentation of a scope should be the same"),
                         expected: scope_indentation as i32,
                         actual: next_line_indentation as i32,
                     },
-                    last_line_number,
+                    Some(&next_line),
+                    0,
                 ));
             } else {
                 // scope has not ended and has valid indentation
                 let line = self.next_lines.next().unwrap().map_err(|_| ParserError {
                     kind: ParserErrorKind::LexerError,
                     filename: self.filename.clone(),
-                    line: last_line_number,
+                    line: None,
+                    token_pos: 0,
                 })?;
 
                 // parse line
@@ -191,6 +231,7 @@ impl Parser {
                     &mut lines,
                     scope_indentation,
                     pure,
+                    &mut already_parsed_expr,
                     imported.clone(),
                     ident_map,
                 )?;
@@ -204,38 +245,17 @@ impl Parser {
             for function_line in lines {
                 match function_line {
                     FunctionLine::Assignment(name, expr) => {
-                        if expressions.len() == 1 {
-                            return Err(self.produce_error(
-                                ParserErrorKind::ReturnExpressionError {
-                                    msg: String::from(
-                                        "Cannot have assignments after expression in a single pure scope!",
-                                    ),
-                                },
-                                line.number,
-                            ));
-                        }
                         assignments.push((name, expr));
                     }
                     FunctionLine::Expression(expr) => {
-                        if expressions.len() > 0 {
-                            return Err(self.produce_error(
-                                ParserErrorKind::ReturnExpressionError {
-                                    msg: String::from("A pure scope can only have 1 expression!"),
-                                },
-                                line.number,
-                            ));
-                        }
                         expressions.push(expr);
                     }
                 }
             }
 
             if expressions.len() == 0 {
-                Err(self.produce_error(ParserErrorKind::ExpressionExpected, last_line_number))
+                Err(self.produce_error(ParserErrorKind::ExpressionExpected, Some(&line), 0))
             } else {
-                if expressions.len() != 1 {
-                    panic!("Expressions must be no more than one in pure scope");
-                }
                 Ok((
                     Scope::Pure {
                         assignments,
@@ -254,7 +274,7 @@ impl Parser {
         &mut self,
         imported: List<PathBuf>,
         lines: &mut Vec<FunctionLine>,
-        line_num: u32,
+        line: &Line,
         import_filename: &str,
         once: bool,
         mut ident_map: HashTrieMap<String, u32>,
@@ -265,7 +285,7 @@ impl Parser {
         };
         let import_path_str = import_path.to_string_lossy().to_string();
         let (already_imported, new_imported) =
-            self.check_imported_else_add(import_path.clone(), imported, line_num)?;
+            self.check_imported_else_add(import_path.clone(), imported, line, 0)?;
 
         if !(once && already_imported) {
             let file = File::open(import_path.clone()).map_err(|err| {
@@ -274,7 +294,8 @@ impl Parser {
                         import_filename: import_path_str.clone(),
                         error_message: err.to_string(),
                     },
-                    line_num,
+                    Some(line),
+                    0,
                 )
             })?;
 
@@ -310,40 +331,57 @@ impl Parser {
         lines: &mut Vec<FunctionLine>,
         indentation: u16,
         pure: bool,
+        already_parsed_expr: &mut bool,
         imported: List<PathBuf>,
         ident_map: HashTrieMap<String, u32>,
     ) -> Result<HashTrieMap<String, u32>, ParserError> {
         match line.tokens.as_slice() {
             [Token::Import, Token::Str(string)] => {
-                self.add_import(imported, lines, line.number, string, false, ident_map)
+                self.add_import(imported, lines, line, string, false, ident_map)
             }
             [Token::Import, Token::Once, Token::Str(string)] => {
-                self.add_import(imported, lines, line.number, string, true, ident_map)
+                self.add_import(imported, lines, line, string, true, ident_map)
+            }
+            [Token::Import, Token::Once, ..] => {
+                Err(self.produce_error(ParserErrorKind::FilenameStringExpected, Some(line), 2))
             }
             [Token::Import, ..] => {
-                Err(self.produce_error(ParserErrorKind::FilenameStringExpected, line.number))
+                Err(self.produce_error(ParserErrorKind::FilenameStringExpected, Some(line), 1))
             }
-            [Token::Name(string), Token::Assignment, rest @ ..] => {
-                let mut iter = rest.iter().peekable();
+            [Token::Name(string), Token::Assignment, ..] => {
+                let mut iter = line.tokens.iter().enumerate().peekable();
+                iter.next().unwrap();
+                iter.next().unwrap();
                 // if name shadowing then replace the name with the old identifier
                 // search the position in the names vector, starting from the end, because usually
                 // names that have been introduced not long ago are shadowed
-                let ident =
-                    if let Some(ident) = ident_map.get(string){
-                        *ident
-                    } else {
-                        self.new_ident(string)
-                    };
+                let ident = if let Some(ident) = ident_map.get(string) {
+                    *ident
+                } else {
+                    self.new_ident(string)
+                };
 
                 let new_map = ident_map.insert(string.to_string(), ident);
                 let expression = self.parse_expression(
                     &mut iter,
-                    line.number,
+                    line,
                     indentation,
                     pure,
                     imported,
                     new_map.clone(),
                 )?;
+                self.assert_no_more_tokens(&mut iter, line)?;
+                if pure && *already_parsed_expr {
+                    return Err(self.produce_error(
+                        ParserErrorKind::ReturnExpressionError {
+                            msg: String::from(
+                                "Cannot have assignments after expression in a single pure scope!",
+                            ),
+                        },
+                        Some(line),
+                        2,
+                    ));
+                }
                 lines.push(FunctionLine::Assignment(ident, Rc::new(expression)));
                 Ok(new_map)
             }
@@ -353,18 +391,30 @@ impl Parser {
                         "The token on the left side of the assignment is not a name!",
                     ),
                 },
-                line.number,
+                Some(line),
+                0,
             )),
             [exp @ ..] => {
-                let mut iter = exp.iter().peekable();
+                let mut iter = exp.iter().enumerate().peekable();
                 let expression = self.parse_expression(
                     &mut iter,
-                    line.number,
+                    line,
                     indentation,
                     pure,
                     imported,
                     ident_map.clone(),
                 )?;
+                self.assert_no_more_tokens(&mut iter, line)?;
+                if pure && *already_parsed_expr {
+                    return Err(self.produce_error(
+                        ParserErrorKind::ReturnExpressionError {
+                            msg: String::from("A pure scope can only have 1 expression!"),
+                        },
+                        Some(line),
+                        0,
+                    ));
+                }
+                *already_parsed_expr = true;
                 lines.push(FunctionLine::Expression(Rc::new(expression)));
                 Ok(ident_map)
             }
@@ -375,24 +425,26 @@ impl Parser {
     // the expression can be on multiple lines
     fn parse_single_expression(
         &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
+        tokens: &mut Peekable<Enumerate<Iter<Token>>>,
+        line: &Line,
         indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
         mut ident_map: HashTrieMap<String, u32>,
     ) -> Result<Expression, ParserError> {
-        let token = tokens
-            .next()
-            .ok_or(self.produce_error(ParserErrorKind::ExpressionExpected, line_num))?;
+        let (token_pos, token) = tokens.next().ok_or(self.produce_error(
+            ParserErrorKind::ExpressionExpected,
+            Some(line),
+            line.tokens.len(),
+        ))?;
         let expr = match token {
             Token::Name(string) => {
                 if let Some(ident) = ident_map.get(string) {
-                    if let Some(Token::LeftBracket) = tokens.peek() {
+                    if let Some((_, Token::LeftBracket)) = tokens.peek() {
                         tokens.next().unwrap();
                         let expr_vec = self.parse_args_list(
                             tokens,
-                            line_num,
+                            line,
                             indentation,
                             pure,
                             imported.clone(),
@@ -410,15 +462,20 @@ impl Parser {
                         ParserErrorKind::UnknownNameError {
                             name: string.clone(),
                         },
-                        line_num,
+                        Some(line),
+                        token_pos,
                     ));
                 }
             }
-            Token::Number(string) => parse_number(string, line_num, &self.filename)?,
+            Token::Number(string) => parse_number(string, line, token_pos, &self.filename)?,
             Token::Str(string) => Expression::Value(parse_string(string)),
             Token::Char(string) => {
                 if string.chars().count() != 1 {
-                    return Err(self.produce_error(ParserErrorKind::CharParseError, line_num));
+                    return Err(self.produce_error(
+                        ParserErrorKind::CharParseError,
+                        Some(line),
+                        token_pos,
+                    ));
                 } else {
                     Expression::Value(Value::Char(string.chars().next().unwrap()))
                 }
@@ -428,7 +485,7 @@ impl Parser {
             Token::Operation(Op::Minus) => {
                 let expr = self.parse_single_expression(
                     tokens,
-                    line_num,
+                    line,
                     indentation,
                     pure,
                     imported.clone(),
@@ -439,7 +496,7 @@ impl Parser {
             Token::Operation(Op::Negation) => {
                 let expr = self.parse_single_expression(
                     tokens,
-                    line_num,
+                    line,
                     indentation,
                     pure,
                     imported.clone(),
@@ -451,7 +508,7 @@ impl Parser {
             Token::Cons => {
                 let (expr_1, expr_2) = self.parse_built_in_binary_function_call(
                     tokens,
-                    line_num,
+                    line,
                     indentation,
                     pure,
                     imported.clone(),
@@ -461,7 +518,7 @@ impl Parser {
             }
             Token::Left => Expression::Left(Rc::new(self.parse_built_in_unary_function_call(
                 tokens,
-                line_num,
+                line,
                 indentation,
                 pure,
                 imported.clone(),
@@ -469,7 +526,7 @@ impl Parser {
             )?)),
             Token::Right => Expression::Right(Rc::new(self.parse_built_in_unary_function_call(
                 tokens,
-                line_num,
+                line,
                 indentation,
                 pure,
                 imported.clone(),
@@ -477,7 +534,7 @@ impl Parser {
             )?)),
             Token::Empty => Expression::Empty(Rc::new(self.parse_built_in_unary_function_call(
                 tokens,
-                line_num,
+                line,
                 indentation,
                 pure,
                 imported.clone(),
@@ -486,7 +543,7 @@ impl Parser {
             Token::Print => Expression::PrintCall {
                 expr: Rc::new(self.parse_built_in_unary_function_call(
                     tokens,
-                    line_num,
+                    line,
                     indentation,
                     pure,
                     imported.clone(),
@@ -497,7 +554,7 @@ impl Parser {
             Token::Println => Expression::PrintCall {
                 expr: Rc::new(self.parse_built_in_unary_function_call(
                     tokens,
-                    line_num,
+                    line,
                     indentation,
                     pure,
                     imported.clone(),
@@ -505,25 +562,36 @@ impl Parser {
                 )?),
                 newline: true,
             },
-            Token::Read => Expression::ReadCall,
+            Token::Read => {
+                self.assert_next_token(
+                    tokens,
+                    Token::LeftBracket,
+                    ParserErrorKind::LeftBracketExpected,
+                    line,
+                )?;
+                self.assert_next_token(
+                    tokens,
+                    Token::RightBracket,
+                    ParserErrorKind::ClosingBracketExpected,
+                    line,
+                )?;
+                self.assert_no_more_tokens(tokens, line)?;
+                Expression::ReadCall
+            }
             Token::Impure => {
                 let mut params = Vec::new();
-                if let Some(Token::LeftBoxBracket) = tokens.peek() {
+                if let Some((_, Token::LeftBoxBracket)) = tokens.peek() {
                     tokens.next().unwrap();
-                    (params, ident_map) = self.parse_name_list(tokens, line_num, ident_map)?;
+                    (params, ident_map) = self.parse_name_list(tokens, line, ident_map)?;
                 }
-                assert_next_token!(
-                    tokens,
-                    Token::Arrow,
-                    self.produce_error(ParserErrorKind::ArrowExpected, line_num)
-                );
+                self.assert_next_token(tokens, Token::Arrow, ParserErrorKind::ArrowExpected, line)?;
 
                 let scope;
                 // check if the return expression is on the same line
                 if let Some(_) = tokens.peek() {
                     let expr = self.parse_expression(
                         tokens,
-                        line_num,
+                        line,
                         indentation,
                         false,
                         imported.clone(),
@@ -550,7 +618,7 @@ impl Parser {
                 if let Some(_) = tokens.peek() {
                     let expr = self.parse_expression(
                         tokens,
-                        line_num,
+                        line,
                         indentation,
                         pure,
                         imported.clone(),
@@ -574,19 +642,14 @@ impl Parser {
                 })
             }
             Token::LeftBoxBracket => {
-                let (params, ident_map) =
-                    self.parse_name_list(tokens, line_num, ident_map.clone())?;
-                assert_next_token!(
-                    tokens,
-                    Token::Arrow,
-                    self.produce_error(ParserErrorKind::ArrowExpected, line_num)
-                );
+                let (params, ident_map) = self.parse_name_list(tokens, line, ident_map.clone())?;
+                self.assert_next_token(tokens, Token::Arrow, ParserErrorKind::ArrowExpected, line)?;
                 let scope;
                 // check if the return expression is on the same line
                 if let Some(_) = tokens.peek() {
                     let expr = self.parse_expression(
                         tokens,
-                        line_num,
+                        line,
                         indentation,
                         pure,
                         imported.clone(),
@@ -611,24 +674,20 @@ impl Parser {
             Token::If => {
                 let condition = Rc::new(self.parse_expression(
                     tokens,
-                    line_num,
+                    line,
                     indentation,
                     pure,
                     imported.clone(),
                     ident_map.clone(),
                 )?);
-                assert_next_token!(
-                    tokens,
-                    Token::Then,
-                    self.produce_error(ParserErrorKind::ThenExpected, line_num)
-                );
+                self.assert_next_token(tokens, Token::Then, ParserErrorKind::ThenExpected, line)?;
                 let then_scope;
                 let else_scope;
                 // check for 'then expression' on the same line
                 if let Some(_) = tokens.peek() {
                     let expr = self.parse_expression(
                         tokens,
-                        line_num,
+                        line,
                         indentation,
                         pure,
                         imported.clone(),
@@ -637,14 +696,15 @@ impl Parser {
                     then_scope = new_scope_with_single_expr(expr, pure);
                     // if yes, check for 'else expression' on the same line and return
                     if let Some(_) = tokens.peek() {
-                        assert_next_token!(
+                        self.assert_next_token(
                             tokens,
                             Token::Else,
-                            self.produce_error(ParserErrorKind::ElseExpected, line_num)
-                        );
+                            ParserErrorKind::ElseExpected,
+                            line,
+                        )?;
                         let expr = self.parse_expression(
                             tokens,
-                            line_num,
+                            line,
                             indentation,
                             pure,
                             imported,
@@ -674,8 +734,8 @@ impl Parser {
                 let next_line = self
                     .next_lines
                     .next()
-                    .ok_or(self.produce_error(ParserErrorKind::UnexpectedEOF, line_num))?
-                    .map_err(|_| self.produce_error(ParserErrorKind::LexerError, line_num))?;
+                    .ok_or(self.produce_error(ParserErrorKind::UnexpectedEOF, None, 0))?
+                    .map_err(|_| self.produce_error(ParserErrorKind::LexerError, None, 0))?;
                 if next_line.indentation != indentation {
                     return Err(self.produce_error(
                         ParserErrorKind::IndentationError {
@@ -683,22 +743,29 @@ impl Parser {
                             expected: indentation as i32,
                             actual: next_line.indentation as i32,
                         },
-                        next_line.number,
+                        Some(&next_line),
+                        0,
                     ));
                 }
-                let mut next_line_tokens = next_line.tokens.as_slice().into_iter().peekable();
-                assert_next_token!(
-                    next_line_tokens,
+                let mut next_line_tokens = next_line
+                    .tokens
+                    .as_slice()
+                    .into_iter()
+                    .enumerate()
+                    .peekable();
+                self.assert_next_token(
+                    &mut next_line_tokens,
                     Token::Else,
-                    self.produce_error(ParserErrorKind::ElseExpected, line_num)
-                );
+                    ParserErrorKind::ElseExpected,
+                    &next_line,
+                )?;
 
                 // check if 'else expression' is on the same line
                 let else_scope;
                 if let Some(_) = next_line_tokens.peek() {
                     let expr = self.parse_expression(
                         &mut next_line_tokens,
-                        next_line.number,
+                        &next_line,
                         next_line.indentation,
                         pure,
                         imported.clone(),
@@ -727,17 +794,18 @@ impl Parser {
             Token::LeftBracket => {
                 let expr = self.parse_expression(
                     tokens,
-                    line_num,
+                    line,
                     indentation,
                     pure,
                     imported.clone(),
                     ident_map.clone(),
                 )?;
-                assert_next_token!(
+                self.assert_next_token(
                     tokens,
                     Token::RightBracket,
-                    self.produce_error(ParserErrorKind::UnbalancedBracketsError, line_num)
-                );
+                    ParserErrorKind::ClosingBracketExpected,
+                    line,
+                )?;
                 expr
             }
             token => {
@@ -745,17 +813,18 @@ impl Parser {
                     ParserErrorKind::UnexpectedToken {
                         token: token.clone(),
                     },
-                    line_num,
+                    Some(line),
+                    token_pos,
                 ))
             }
         };
 
         // check if the expression is called as a function
         match tokens.peek() {
-            Some(Token::LeftBracket) => {
+            Some((_, Token::LeftBracket)) => {
                 tokens.next().unwrap();
                 let expr_vec =
-                    self.parse_args_list(tokens, line_num, indentation, pure, imported, ident_map)?;
+                    self.parse_args_list(tokens, line, indentation, pure, imported, ident_map)?;
                 Ok(Expression::FunctionCall {
                     expr: Rc::new(expr),
                     args: expr_vec,
@@ -769,8 +838,8 @@ impl Parser {
     // pseudo code from wikipedia: https://en.wikipedia.org/wiki/Operator-precedence_parser
     fn parse_expression_with_precedence(
         &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
+        tokens: &mut Peekable<Enumerate<Iter<Token>>>,
+        line: &Line,
         indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
@@ -781,11 +850,11 @@ impl Parser {
         let mut lookahead = tokens.peek();
         loop {
             match lookahead {
-                Some(Token::Operation(op)) if op.precedence() >= min_precedence => {
+                Some((_, Token::Operation(op))) if op.precedence() >= min_precedence => {
                     tokens.next().unwrap();
                     let mut right = self.parse_single_expression(
                         tokens,
-                        line_num,
+                        line,
                         indentation,
                         pure,
                         imported.clone(),
@@ -793,21 +862,36 @@ impl Parser {
                     )?;
                     lookahead = tokens.peek();
 
-                    while matches!(lookahead, Some(Token::Operation(op_2)) if op_2.precedence() > op.precedence())
-                    {
-                        right = self.parse_expression_with_precedence(
-                            tokens,
-                            line_num,
-                            indentation,
-                            pure,
-                            imported.clone(),
-                            ident_map.clone(),
-                            right,
-                            op.precedence() + 1,
-                        )?;
-                        lookahead = tokens.peek();
+                    let mut op_token_pos: usize = 0;
+                    loop {
+                        match lookahead {
+                            Some((token_pos, Token::Operation(op_2)))
+                                if op_2.precedence() > op.precedence() =>
+                            {
+                                op_token_pos = *token_pos;
+                                right = self.parse_expression_with_precedence(
+                                    tokens,
+                                    line,
+                                    indentation,
+                                    pure,
+                                    imported.clone(),
+                                    ident_map.clone(),
+                                    right,
+                                    op.precedence() + 1,
+                                )?;
+                                lookahead = tokens.peek();
+                            }
+                            _ => break,
+                        }
                     }
-                    left = parse_binary_operation(op, left, right, line_num, &self.filename)?;
+                    left = parse_binary_operation(
+                        op,
+                        left,
+                        right,
+                        line,
+                        op_token_pos,
+                        &self.filename,
+                    )?;
                 }
                 _ => break,
             }
@@ -819,8 +903,8 @@ impl Parser {
     // parses expression with operators
     fn parse_expression(
         &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
+        tokens: &mut Peekable<Enumerate<Iter<Token>>>,
+        line: &Line,
         indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
@@ -828,7 +912,7 @@ impl Parser {
     ) -> Result<Expression, ParserError> {
         let expr = self.parse_single_expression(
             tokens,
-            line_num,
+            line,
             indentation,
             pure,
             imported.clone(),
@@ -836,7 +920,7 @@ impl Parser {
         )?;
         self.parse_expression_with_precedence(
             tokens,
-            line_num,
+            line,
             indentation,
             pure,
             imported,
@@ -849,71 +933,69 @@ impl Parser {
     // parses "name(arg)" function call
     fn parse_built_in_unary_function_call(
         &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
+        tokens: &mut Peekable<Enumerate<Iter<Token>>>,
+        line: &Line,
         indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
         ident_map: HashTrieMap<String, u32>,
     ) -> Result<Expression, ParserError> {
-        assert_next_token!(
+        self.assert_next_token(
             tokens,
             Token::LeftBracket,
-            self.produce_error(ParserErrorKind::LeftBracketExpected, line_num)
-        );
-        let expr =
-            self.parse_expression(tokens, line_num, indentation, pure, imported, ident_map)?;
-        assert_next_token!(
+            ParserErrorKind::LeftBracketExpected,
+            line,
+        )?;
+        let expr = self.parse_expression(tokens, line, indentation, pure, imported, ident_map)?;
+        self.assert_next_token(
             tokens,
             Token::RightBracket,
-            self.produce_error(ParserErrorKind::UnbalancedBracketsError, line_num)
-        );
+            ParserErrorKind::ClosingBracketExpected,
+            line,
+        )?;
         Ok(expr)
     }
 
     // parses "name(arg, arg)" function call
     fn parse_built_in_binary_function_call(
         &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
+        tokens: &mut Peekable<Enumerate<Iter<Token>>>,
+        line: &Line,
         indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
         ident_map: HashTrieMap<String, u32>,
     ) -> Result<(Expression, Expression), ParserError> {
-        assert_next_token!(
+        self.assert_next_token(
             tokens,
             Token::LeftBracket,
-            self.produce_error(ParserErrorKind::LeftBracketExpected, line_num)
-        );
+            ParserErrorKind::LeftBracketExpected,
+            line,
+        )?;
         let expr_1 = self.parse_expression(
             tokens,
-            line_num,
+            line,
             indentation,
             pure,
             imported.clone(),
             ident_map.clone(),
         )?;
-        assert_next_token!(
-            tokens,
-            Token::Comma,
-            self.produce_error(ParserErrorKind::CommaExpected, line_num)
-        );
-        let expr_2 =
-            self.parse_expression(tokens, line_num, indentation, pure, imported, ident_map)?;
-        assert_next_token!(
+        self.assert_next_token(tokens, Token::Comma, ParserErrorKind::CommaExpected, line)?;
+        let expr_2 = self.parse_expression(tokens, line, indentation, pure, imported, ident_map)?;
+        self.assert_next_token(
             tokens,
             Token::RightBracket,
-            self.produce_error(ParserErrorKind::UnbalancedBracketsError, line_num)
-        );
+            ParserErrorKind::ClosingBracketExpected,
+            line,
+        )?;
         Ok((expr_1, expr_2))
     }
 
     // parses arbitrary list of args, ending with right bracket
     fn parse_args_list(
         &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
+        tokens: &mut Peekable<Enumerate<Iter<Token>>>,
+        line: &Line,
         indentation: u16,
         pure: bool,
         imported: List<PathBuf>,
@@ -922,9 +1004,11 @@ impl Parser {
         let mut vec = vec![];
 
         loop {
-            let token = tokens
-                .peek()
-                .ok_or(self.produce_error(ParserErrorKind::UnexpectedEndOfLine, line_num))?;
+            let (_, token) = tokens.peek().ok_or(self.produce_error(
+                ParserErrorKind::UnexpectedEndOfLine,
+                Some(line),
+                line.tokens.len(),
+            ))?;
 
             match token {
                 Token::RightBracket => {
@@ -934,7 +1018,7 @@ impl Parser {
                 _ => {
                     let expr = self.parse_expression(
                         tokens,
-                        line_num,
+                        line,
                         indentation,
                         pure,
                         imported.clone(),
@@ -942,12 +1026,23 @@ impl Parser {
                     )?;
                     vec.push(Rc::new(expr));
                     match tokens.peek() {
-                        Some(Token::Comma) => {
+                        Some((_, Token::Comma)) => {
                             tokens.next().unwrap();
                         }
-                        Some(Token::RightBracket) => (),
+                        Some((_, Token::RightBracket)) => (),
+                        Some((token_pos, _)) => {
+                            return Err(self.produce_error(
+                                ParserErrorKind::CommaExpected,
+                                Some(line),
+                                *token_pos,
+                            ))
+                        }
                         _ => {
-                            return Err(self.produce_error(ParserErrorKind::CommaExpected, line_num))
+                            return Err(self.produce_error(
+                                ParserErrorKind::UnexpectedEndOfLine,
+                                Some(line),
+                                line.tokens.len(),
+                            ))
                         }
                     };
                 }
@@ -957,15 +1052,17 @@ impl Parser {
     // parses arbitrary number of parameters, ending in right box bracket
     fn parse_name_list(
         &mut self,
-        tokens: &mut Peekable<Iter<Token>>,
-        line_num: u32,
+        tokens: &mut Peekable<Enumerate<Iter<Token>>>,
+        line: &Line,
         mut ident_map: HashTrieMap<String, u32>,
     ) -> Result<(Vec<u32>, HashTrieMap<String, u32>), ParserError> {
         let mut vec = vec![];
         loop {
-            let token = tokens
-                .next()
-                .ok_or(self.produce_error(ParserErrorKind::UnexpectedEndOfLine, line_num))?;
+            let (token_pos, token) = tokens.next().ok_or(self.produce_error(
+                ParserErrorKind::UnexpectedEndOfLine,
+                Some(line),
+                line.tokens.len(),
+            ))?;
             match token {
                 Token::RightBoxBracket => return Ok((vec, ident_map)),
                 Token::Name(string) => {
@@ -973,16 +1070,26 @@ impl Parser {
                     ident_map = ident_map.insert(string.to_string(), ident);
                     vec.push(ident);
                     match tokens.peek() {
-                        Some(Token::Comma) => {
+                        Some((_, Token::Comma)) => {
                             tokens.next().unwrap();
                         }
-                        Some(Token::RightBoxBracket) => (),
+                        Some((_, Token::RightBoxBracket)) => (),
                         _ => {
-                            return Err(self.produce_error(ParserErrorKind::CommaExpected, line_num))
+                            return Err(self.produce_error(
+                                ParserErrorKind::CommaExpected,
+                                Some(line),
+                                token_pos + 1,
+                            ))
                         }
                     };
                 }
-                _ => return Err(self.produce_error(ParserErrorKind::NameExpected, line_num)),
+                _ => {
+                    return Err(self.produce_error(
+                        ParserErrorKind::NameExpected,
+                        Some(line),
+                        token_pos,
+                    ))
+                }
             };
         }
     }
@@ -1005,7 +1112,8 @@ fn parse_binary_operation(
     op: &Op,
     expr_1: Expression,
     expr_2: Expression,
-    line_num: u32,
+    line: &Line,
+    op_token_pos: usize,
     filename: &str,
 ) -> Result<Expression, ParserError> {
     Ok(match op {
@@ -1046,7 +1154,8 @@ fn parse_binary_operation(
         Op::Negation => {
             return Err(ParserError {
                 kind: ParserErrorKind::OpError,
-                line: line_num,
+                line: Some(line.to_owned()),
+                token_pos: op_token_pos,
                 filename: filename.to_string(),
             })
         }
@@ -1060,7 +1169,12 @@ pub fn parse_string(string: &str) -> Value {
     })
 }
 
-fn parse_number(string: &str, line_num: u32, filename: &str) -> Result<Expression, ParserError> {
+fn parse_number(
+    string: &str,
+    line: &Line,
+    token_pos: usize,
+    filename: &str,
+) -> Result<Expression, ParserError> {
     if let Some(integer) = string.parse::<i32>().ok() {
         Ok(Expression::Value(Value::Number(Number::Integer(integer))))
     } else if let Some(float) = string.parse::<f64>().ok() {
@@ -1069,7 +1183,8 @@ fn parse_number(string: &str, line_num: u32, filename: &str) -> Result<Expressio
         Err(ParserError {
             kind: ParserErrorKind::NumberParseError,
             filename: filename.to_string(),
-            line: line_num,
+            line: Some(line.to_owned()),
+            token_pos,
         })
     }
 }

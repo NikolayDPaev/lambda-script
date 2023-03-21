@@ -1,11 +1,13 @@
 use std::rc::Rc;
 
-use crate::parser::enums::{ArithBinOp, BoolBinOp, CmpBinOp, Expression, Value, display_expr, display_value};
+use crate::parser::enums::{
+    display_expr, display_value, ArithBinOp, BoolBinOp, CmpBinOp, Expression, Value,
+};
 
 #[derive(Debug)]
 pub enum EvaluatorError {
     //UnknownName(Rc<Expression>),
-    ErrorWithInfo{
+    ErrorWithInfo {
         expr: Rc<Expression>,
         error: Box<EvaluatorError>,
     },
@@ -80,10 +82,11 @@ fn format_error(err: EvaluatorError, names: &[String]) -> String {
         EvaluatorError::UnexpectedRead() => format!(
             "Read call at invalid position. The only possible place for the read is in an assignment in impure scope"
         ),
-        EvaluatorError::ErrorWithInfo { expr, error } => 
-        format!(
-            "While evaluating expression:\n\t{}\n{}", display_expr(expr, names), format_error(*error, names) 
-        ),
+        EvaluatorError::ErrorWithInfo { expr, error } => {
+            format!(
+                "While evaluating expression:\n\t{}\n{}", display_expr(expr, names), format_error(*error, names) 
+            )
+        },
     }
 }
 
