@@ -53,7 +53,7 @@ prints to stdout
 
 Built-in functions:
  - ```read()``` reads line from the std in and returns list of characters. The only valid place for this expression is in assignment.
- - ```print(<expr>)```  prints value to std out
+ - ```print(<expr>)``` and ```println(<expr>)```  prints value to std out
  - ```left(<expr>)``` if expression is cons or tuple, returns left element
  - ```right(<expr>)``` if expression is cons or tuple, returns right element
  - ```cons(<expr>, <expr>)``` constructs new tuple from the expressions
