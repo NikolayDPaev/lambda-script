@@ -13,4 +13,4 @@ isPrime = [n] ->
 infPrimes = -> filter(isPrime, infiniteRange(2))
 
 print("Press enter for next:")
-applyOnUserInput(impure [x] -> print(x), infPrimes())
+applyOnUserInput(print, infPrimes())

@@ -26,6 +26,49 @@ macro_rules! new_binary_operation {
     };
 }
 
+macro_rules! new_unary_function {
+    ($parser:expr, $exp:expr, $pure:expr) => {{
+        let param = $parser.new_ident("x");
+        Expression::Value(Value::Function {
+            params: vec![param],
+            scope: new_scope_with_single_expr($exp(Rc::new(Expression::Ident(param))), $pure),
+        })
+    }};
+}
+
+macro_rules! new_print_function {
+    ($parser:expr, $newline:expr) => {{
+        let param = $parser.new_ident("x");
+        Expression::Value(Value::Function {
+            params: vec![param],
+            scope: new_scope_with_single_expr(
+                Expression::PrintCall {
+                    expr: Rc::new(Expression::Ident(param)),
+                    newline: $newline,
+                },
+                false,
+            ),
+        })
+    }};
+}
+
+macro_rules! new_binary_function {
+    ($parser:expr, $exp:expr, $pure:expr) => {{
+        let param_1 = $parser.new_ident("x");
+        let param_2 = $parser.new_ident("y");
+        Expression::Value(Value::Function {
+            params: vec![param_1, param_2],
+            scope: new_scope_with_single_expr(
+                $exp(
+                    Rc::new(Expression::Ident(param_1)),
+                    Rc::new(Expression::Ident(param_2)),
+                ),
+                $pure,
+            ),
+        })
+    }};
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum FunctionLine {
     Expression(Rc<Expression>),
@@ -359,13 +402,8 @@ impl Parser {
                 };
 
                 let new_map = ident_map.insert(string.to_string(), ident);
-                let expression = self.parse_expression(
-                    &mut iter,
-                    line,
-                    pure,
-                    imported,
-                    new_map.clone(),
-                )?;
+                let expression =
+                    self.parse_expression(&mut iter, line, pure, imported, new_map.clone())?;
                 self.assert_no_more_tokens(&mut iter, line)?;
                 if pure && *already_parsed_expr {
                     return Err(self.produce_error(
@@ -392,13 +430,8 @@ impl Parser {
             )),
             [exp @ ..] => {
                 let mut iter = exp.iter().enumerate().peekable();
-                let expression = self.parse_expression(
-                    &mut iter,
-                    line,
-                    pure,
-                    imported,
-                    ident_map.clone(),
-                )?;
+                let expression =
+                    self.parse_expression(&mut iter, line, pure, imported, ident_map.clone())?;
                 self.assert_no_more_tokens(&mut iter, line)?;
                 if pure && *already_parsed_expr {
                     return Err(self.produce_error(
@@ -497,71 +530,118 @@ impl Parser {
             }
             Token::Nil => Expression::Value(Value::Nil),
             Token::Cons => {
-                let (expr_1, expr_2) = self.parse_built_in_binary_function_call(
-                    tokens,
-                    line,
-                    pure,
-                    imported.clone(),
-                    ident_map.clone(),
-                )?;
-                Expression::Cons(Rc::new(expr_1), Rc::new(expr_2))
+                if let Some((_, Token::LeftBracket)) = tokens.peek() {
+                    let (expr_1, expr_2) = self.parse_built_in_binary_function_call(
+                        tokens,
+                        line,
+                        pure,
+                        imported.clone(),
+                        ident_map.clone(),
+                    )?;
+                    Expression::Cons(Rc::new(expr_1), Rc::new(expr_2))
+                } else {
+                    new_binary_function!(self, Expression::Cons, true)
+                }
             }
-            Token::Left => Expression::Left(Rc::new(self.parse_built_in_unary_function_call(
-                tokens,
-                line,
-                pure,
-                imported.clone(),
-                ident_map.clone(),
-            )?)),
-            Token::Right => Expression::Right(Rc::new(self.parse_built_in_unary_function_call(
-                tokens,
-                line,
-                pure,
-                imported.clone(),
-                ident_map.clone(),
-            )?)),
-            Token::Empty => Expression::Empty(Rc::new(self.parse_built_in_unary_function_call(
-                tokens,
-                line,
-                pure,
-                imported.clone(),
-                ident_map.clone(),
-            )?)),
-            Token::Print => Expression::PrintCall {
-                expr: Rc::new(self.parse_built_in_unary_function_call(
-                    tokens,
-                    line,
-                    pure,
-                    imported.clone(),
-                    ident_map.clone(),
-                )?),
-                newline: false,
-            },
-            Token::Println => Expression::PrintCall {
-                expr: Rc::new(self.parse_built_in_unary_function_call(
-                    tokens,
-                    line,
-                    pure,
-                    imported.clone(),
-                    ident_map.clone(),
-                )?),
-                newline: true,
-            },
+            Token::Left => {
+                if let Some((_, Token::LeftBracket)) = tokens.peek() {
+                    Expression::Left(Rc::new(self.parse_built_in_unary_function_call(
+                        tokens,
+                        line,
+                        pure,
+                        imported.clone(),
+                        ident_map.clone(),
+                    )?))
+                } else {
+                    new_unary_function!(self, Expression::Left, true)
+                }
+            }
+            Token::Right => {
+                if let Some((_, Token::LeftBracket)) = tokens.peek() {
+                    Expression::Right(Rc::new(self.parse_built_in_unary_function_call(
+                        tokens,
+                        line,
+                        pure,
+                        imported.clone(),
+                        ident_map.clone(),
+                    )?))
+                } else {
+                    new_unary_function!(self, Expression::Right, true)
+                }
+            }
+            Token::Empty => {
+                if let Some((_, Token::LeftBracket)) = tokens.peek() {
+                    Expression::Empty(Rc::new(self.parse_built_in_unary_function_call(
+                        tokens,
+                        line,
+                        pure,
+                        imported.clone(),
+                        ident_map.clone(),
+                    )?))
+                } else {
+                    new_unary_function!(self, Expression::Empty, true)
+                }
+            }
+            Token::Print => {
+                if let Some((_, Token::LeftBracket)) = tokens.peek() {
+                    Expression::PrintCall {
+                        expr: Rc::new(self.parse_built_in_unary_function_call(
+                            tokens,
+                            line,
+                            pure,
+                            imported.clone(),
+                            ident_map.clone(),
+                        )?),
+                        newline: false,
+                    }
+                } else {
+                    new_print_function!(self, false)
+                }
+            }
+            Token::Println => {
+                if let Some((_, Token::LeftBracket)) = tokens.peek() {
+                    Expression::PrintCall {
+                        expr: Rc::new(self.parse_built_in_unary_function_call(
+                            tokens,
+                            line,
+                            pure,
+                            imported.clone(),
+                            ident_map.clone(),
+                        )?),
+                        newline: true,
+                    }
+                } else {
+                    new_print_function!(self, true)
+                }
+            }
             Token::Read => {
-                self.assert_next_token(
-                    tokens,
-                    Token::LeftBracket,
-                    ParserErrorKind::LeftBracketExpected,
-                    line,
-                )?;
-                self.assert_next_token(
-                    tokens,
-                    Token::RightBracket,
-                    ParserErrorKind::ClosingBracketExpected,
-                    line,
-                )?;
-                self.assert_no_more_tokens(tokens, line)?;
-                Expression::ReadCall
+                if let Some((_, Token::LeftBracket)) = tokens.peek() {
+                    self.assert_next_token(
+                        tokens,
+                        Token::LeftBracket,
+                        ParserErrorKind::LeftBracketExpected,
+                        line,
+                    )?;
+                    self.assert_next_token(
+                        tokens,
+                        Token::RightBracket,
+                        ParserErrorKind::ClosingBracketExpected,
+                        line,
+                    )?;
+                    self.assert_no_more_tokens(tokens, line)?;
+                    Expression::ReadCall
+                } else {
+                    let ident = self.new_ident("x");
+                    Expression::Value(Value::Function {
+                        params: vec![],
+                        scope: Box::new(Scope::Impure {
+                            lines: vec![
+                                FunctionLine::Assignment(ident, Rc::new(Expression::ReadCall)),
+                                FunctionLine::Expression(Rc::new(Expression::Ident(ident))),
+                            ],
+                        }),
+                    })
+                }
             }
             Token::Impure => {
                 let mut params = Vec::new();
@@ -630,13 +710,8 @@ impl Parser {
                 let scope;
                 // check if the return expression is on the same line
                 if let Some(_) = tokens.peek() {
-                    let expr = self.parse_expression(
-                        tokens,
-                        line,
-                        pure,
-                        imported.clone(),
-                        ident_map,
-                    )?;
+                    let expr =
+                        self.parse_expression(tokens, line, pure, imported.clone(), ident_map)?;
                     scope = new_scope_with_single_expr(expr, true);
                 } else {
                     scope = {
@@ -682,13 +757,8 @@ impl Parser {
                             ParserErrorKind::ElseExpected,
                             line,
                         )?;
-                        let expr = self.parse_expression(
-                            tokens,
-                            line,
-                            pure,
-                            imported,
-                            ident_map,
-                        )?;
+                        let expr =
+                            self.parse_expression(tokens, line, pure, imported, ident_map)?;
                         else_scope = new_scope_with_single_expr(expr, pure);
 
                         return Ok(Expression::If {
@@ -770,13 +840,8 @@ impl Parser {
                 }
             }
             Token::LeftBracket => {
-                let expr = self.parse_expression(
-                    tokens,
-                    line,
-                    pure,
-                    imported.clone(),
-                    ident_map.clone(),
-                )?;
+                let expr =
+                    self.parse_expression(tokens, line, pure, imported.clone(), ident_map.clone())?;
                 self.assert_next_token(
                     tokens,
                     Token::RightBracket,
@@ -800,8 +865,7 @@ impl Parser {
         match tokens.peek() {
             Some((_, Token::LeftBracket)) => {
                 tokens.next().unwrap();
-                let expr_vec =
-                    self.parse_args_list(tokens, line, pure, imported, ident_map)?;
+                let expr_vec = self.parse_args_list(tokens, line, pure, imported, ident_map)?;
                 Ok(Expression::FunctionCall {
                     expr: Rc::new(expr),
                     args: expr_vec,
@@ -883,22 +947,9 @@ impl Parser {
         imported: List<PathBuf>,
         ident_map: HashTrieMap<String, u32>,
     ) -> Result<Expression, ParserError> {
-        let expr = self.parse_single_expression(
-            tokens,
-            line,
-            pure,
-            imported.clone(),
-            ident_map.clone(),
-        )?;
-        self.parse_expression_with_precedence(
-            tokens,
-            line,
-            pure,
-            imported,
-            ident_map,
-            expr,
-            0,
-        )
+        let expr =
+            self.parse_single_expression(tokens, line, pure, imported.clone(), ident_map.clone())?;
+        self.parse_expression_with_precedence(tokens, line, pure, imported, ident_map, expr, 0)
     }
 
     // parses "name(arg)" function call
@@ -941,13 +992,8 @@ impl Parser {
             ParserErrorKind::LeftBracketExpected,
             line,
         )?;
-        let expr_1 = self.parse_expression(
-            tokens,
-            line,
-            pure,
-            imported.clone(),
-            ident_map.clone(),
-        )?;
+        let expr_1 =
+            self.parse_expression(tokens, line, pure, imported.clone(), ident_map.clone())?;
         self.assert_next_token(tokens, Token::Comma, ParserErrorKind::CommaExpected, line)?;
         let expr_2 = self.parse_expression(tokens, line, pure, imported, ident_map)?;
         self.assert_next_token(

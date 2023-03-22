@@ -165,8 +165,6 @@ fn test_builtin_functions() {
         Expression::Right(Rc::new(Expression::Value(Value::Boolean(true)))),
     );
 
-    test_one_line_expression_error(vec![Token::Right], LeftBracketExpected, 1);
-
     test_one_line_expression(
         vec![Token::Read, Token::LeftBracket, Token::RightBracket],
         Expression::ReadCall,
@@ -180,6 +178,87 @@ fn test_builtin_functions() {
         ],
         UnexpectedToken { token: Token::True },
         3,
+    );
+}
+
+#[test]
+fn test_builtin_functions_as_first_class_citizens() {
+    test_one_line_expression(
+        vec![Token::Cons],
+        Expression::Value(Value::Function {
+            params: vec![0, 1],
+            scope: Box::new(Scope::Pure {
+                assignments: vec![],
+                expression: Rc::new(Expression::Cons(
+                    Rc::new(Expression::Ident(0)),
+                    Rc::new(Expression::Ident(1)),
+                )),
+            }),
+        }),
+    );
+    test_one_line_expression(
+        vec![Token::Left],
+        Expression::Value(Value::Function {
+            params: vec![0],
+            scope: Box::new(Scope::Pure {
+                assignments: vec![],
+                expression: Rc::new(Expression::Left(Rc::new(Expression::Ident(0)))),
+            }),
+        }),
+    );
+    test_one_line_expression(
+        vec![Token::Right],
+        Expression::Value(Value::Function {
+            params: vec![0],
+            scope: Box::new(Scope::Pure {
+                assignments: vec![],
+                expression: Rc::new(Expression::Right(Rc::new(Expression::Ident(0)))),
+            }),
+        }),
+    );
+    test_one_line_expression(
+        vec![Token::Empty],
+        Expression::Value(Value::Function {
+            params: vec![0],
+            scope: Box::new(Scope::Pure {
+                assignments: vec![],
+                expression: Rc::new(Expression::Empty(Rc::new(Expression::Ident(0)))),
+            }),
+        }),
+    );
+    test_one_line_expression(
+        vec![Token::Print],
+        Expression::Value(Value::Function {
+            params: vec![0],
+            scope: Box::new(Scope::Impure {
+                lines: vec![ImpureLine::Expression(Rc::new(Expression::PrintCall {
+                    expr: Rc::new(Expression::Ident(0)),
+                    newline: false,
+                }))],
+            }),
+        }),
+    );
+    test_one_line_expression(
+        vec![Token::Println],
+        Expression::Value(Value::Function {
+            params: vec![0],
+            scope: Box::new(Scope::Impure {
+                lines: vec![ImpureLine::Expression(Rc::new(Expression::PrintCall {
+                    expr: Rc::new(Expression::Ident(0)),
+                    newline: true,
+                }))],
+            }),
+        }),
+    );
+    test_one_line_expression(
+        vec![Token::Read],
+        Expression::Value(Value::Function {
+            params: vec![],
+            scope: Box::new(Scope::Impure {
+                lines: vec![ImpureLine::Assignment(0, Rc::new(Expression::ReadCall)),
+                ImpureLine::Expression(Rc::new(Expression::Ident(0)))],
+            }),
+        }),
     );
 }
 
