@@ -28,6 +28,15 @@ prints to stdout
  - ```cargo run --release -- <filename>```
  - or as executable ```lambda-script <filename>```
 
+## Starter pack
+ - Contains
+   - ```lambda-script``` compiled executable
+   - ```example.ls```
+   - ```lists.ls``` and ```numbers.ls``` libraries
+   - ```lambda-script-syntax-highlighter-*.vsix``` extension for vscode - to install right click on it in vscode file explorer and then press "Install Extension VSIX"
+ - Download links
+   - [Windows](https://downgit.github.io/#/home?url=https://github.com/NikolayDPaev/lambda-script/starter-packs/lambda-script-starter-pack-windows)
+   - [Linux](https://downgit.github.io/#/home?url=https://github.com/NikolayDPaev/lambda-script/starter-packs/lambda-script-starter-pack-linux)
 # Short description
 
 ## Expressions
