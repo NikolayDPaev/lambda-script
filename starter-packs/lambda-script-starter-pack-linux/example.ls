@@ -1,6 +1,6 @@
 # Example:
+import once "numbers.ls" as nums # parseNumber
 import once "lists.ls" # cat
-import once "numbers.ls" # parseNumber
 
 returnMessage = [number] ->
     if number == 42 then
@@ -10,6 +10,6 @@ returnMessage = [number] ->
 
 println(cat("What is the answer to the ", "Ultimate Question of Life, the Universe, and Everything?"))
 input = read()
-parsedInput = parseNumber(input)
+parsedInput = nums.parseNumber(input)
 
 println(returnMessage(parsedInput))

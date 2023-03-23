@@ -10,7 +10,7 @@ macro_rules! assert_eq_vec {
 
 #[test]
 fn test_all_lexemes_line() {
-    let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / // * ** % == != < > <= >= true false if else then = -> ( ) , [ ] impure cons left right empty nil import once read print println";
+    let lexemes = "   variable \"\" \"word with space\"   \'\' \'char\' 55.44 1234 0 & | ^ ! + - / // * ** % == != < > <= >= true false if else then = -> ( ) , [ ] impure cons left right empty nil import once as read print println";
     let lines = lines(lexemes.as_bytes()).collect::<Vec<_>>();
     assert_eq!(lines.len(), 1);
     let line = lines[0].as_ref().unwrap();
@@ -61,6 +61,7 @@ fn test_all_lexemes_line() {
         Token::Nil,
         Token::Import,
         Token::Once,
+        Token::As,
         Token::Read,
         Token::Print,
         Token::Println

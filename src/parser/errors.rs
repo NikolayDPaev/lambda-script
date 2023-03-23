@@ -32,6 +32,7 @@ pub enum ParserErrorKind {
     NumberParseError,
     CharParseError,
     FilenameStringExpected,
+    AsNameExpected,
     NameExpected,
     ArrowExpected,
     LeftBracketExpected,
@@ -114,6 +115,9 @@ impl fmt::Display for ParserError {
             ParserErrorKind::CharParseError => format!("Error parsing char"),
             ParserErrorKind::FilenameStringExpected => {
                 format!("Expected single filename string ")
+            }
+            ParserErrorKind::AsNameExpected => {
+                format!("Expected name after as ")
             }
             ParserErrorKind::NameExpected => format!("Expected name"),
             ParserErrorKind::ArrowExpected => format!("Expected arrow"),

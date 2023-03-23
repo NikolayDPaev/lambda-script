@@ -318,6 +318,7 @@ impl Parser {
         line: &Line,
         import_filename: &str,
         once: bool,
+        as_name: Option<&str>,
         mut ident_map: HashTrieMap<String, u32>,
     ) -> Result<HashTrieMap<String, u32>, ParserError> {
         let import_path = match PathBuf::from(self.filename.clone()).parent() {
@@ -349,7 +350,16 @@ impl Parser {
             };
             let (scope, map) = parser.parse_scope(-1, false, new_imported, HashTrieMap::new())?;
             ident_map = map.into_iter().fold(ident_map, |acc, (key, value)| {
-                acc.insert(key.to_string(), *value)
+                match as_name {
+                    // append "<as_name>." to the imported names
+                    Some(name) => {
+                        let mut name = name.to_owned();
+                        name.push('.');
+                        name.push_str(key);
+                        acc.insert(name, *value)
+                    },
+                    None => acc.insert(key.to_string(), *value)
+                }
             });
             self.next_ident = parser.next_ident;
             self.names.append(&mut parser.names);
@@ -376,11 +386,23 @@ impl Parser {
         ident_map: HashTrieMap<String, u32>,
     ) -> Result<HashTrieMap<String, u32>, ParserError> {
         match line.tokens.as_slice() {
+            [Token::Import, Token::Str(string), Token::As, Token::Name(as_str)] => {
+                self.add_import(imported, lines, line, string, false,Some(&as_str), ident_map)
+            }
+            [Token::Import, Token::Str(_), Token::As, ..] => {
+                Err(self.produce_error(ParserErrorKind::AsNameExpected, Some(line), 3))
+            }
+            [Token::Import, Token::Once, Token::Str(string), Token::As, Token::Name(as_str)] => {
+                self.add_import(imported, lines, line, string, true, Some(&as_str), ident_map)
+            }
+            [Token::Import, Token::Once, Token::Str(_), Token::As, ..] => {
+                Err(self.produce_error(ParserErrorKind::AsNameExpected, Some(line), 4))
+            }
             [Token::Import, Token::Str(string)] => {
-                self.add_import(imported, lines, line, string, false, ident_map)
+                self.add_import(imported, lines, line, string, false, None, ident_map)
             }
             [Token::Import, Token::Once, Token::Str(string)] => {
-                self.add_import(imported, lines, line, string, true, ident_map)
+                self.add_import(imported, lines, line, string, true, None, ident_map)
             }
             [Token::Import, Token::Once, ..] => {
                 Err(self.produce_error(ParserErrorKind::FilenameStringExpected, Some(line), 2))

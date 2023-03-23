@@ -1,12 +1,12 @@
-import once "lists.ls"
+import once "lists.ls" as ls
 
 # arbitrary tree constructor
 nodeCons = [data, children] ->
     cons(data, children)
 
 # getters
-data = [node] -> nth(0, node)
-nthChild = [node, n] -> nth(n + 1, node)
+data = [node] -> ls.nth(0, node)
+nthChild = [node, n] -> ls.nth(n + 1, node)
 
 # produces lazy list that traverses the tree with bfs
 bfsList = [tree] ->
@@ -18,7 +18,7 @@ bfsList = [tree] ->
             if empty(tree) then # skip
                 traverse(right(queue))
             else
-                newQueue = cat(right(queue), right(tree))
+                newQueue = ls.cat(right(queue), right(tree))
                 cons(data(tree), traverse(newQueue))
     traverse(cons(tree, nil))
 
@@ -27,7 +27,7 @@ bfsList = [tree] ->
 makeFloatsTree = [] ->
     helper = [n, depth] ->
         coeff = 10 ** depth
-        children = map([x] -> helper(n + x / coeff, depth + 1), range(1, 10))
+        children = ls.map([x] -> helper(n + x / coeff, depth + 1), ls.range(1, 10))
         nodeCons(n, children)
     helper(0, 1)
 
@@ -40,6 +40,6 @@ makeNatsTree = [] ->
 countReals = [] ->
     infFloats = bfsList(makeFloatsTree())
     infNats = bfsList(makeNatsTree())
-    zip(infNats, infFloats)
+    ls.zip(infNats, infFloats)
 
-printlnList(take(30, countReals()))
+ls.printlnList(ls.take(30, countReals()))

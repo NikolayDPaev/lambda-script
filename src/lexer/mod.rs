@@ -113,6 +113,8 @@ impl Line {
                     tokens.push(Token::Import);
                 } else if string == "once" {
                     tokens.push(Token::Once);
+                } else if string == "as" {
+                    tokens.push(Token::As);
                 } else if string == "read" {
                     tokens.push(Token::Read);
                 } else if string == "print" {

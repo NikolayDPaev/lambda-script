@@ -71,11 +71,15 @@ Built-in functions:
 ## Imports
 **Imports** are also available. If the import statement is in the scope of pure function, then the imported file outside scope should consist only of assignments. If the import statement is in impure scope, then there are no restrictions.
  - ``` import once ``` imports the file only if it has not been imported in the current scope. It prevents circular imports.
+ - ``` import "<filename>" as <name> ``` prepends the imported names with ```<name>.``` to lower the possibility of name clashes.
 ```
 import "example.ls"
 ```
 ```
 import once "lib.ls"
+```
+```
+import once "lib.ls" as lib
 ```
 ## Comments
 Symbol # marks beginning of a **comment**. Comments end at the end of the line.
