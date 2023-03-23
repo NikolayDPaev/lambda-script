@@ -14,7 +14,7 @@
 			"name": "support.function.lambdascript"
 		},
         {
-			"match": "\\b(if|else|then|impure|import|once|->)\\b",
+			"match": "\\b(if|else|then|impure|import|once|as|->)\\b",
             "name": "keyword.control.lambdascript"
         },
         {

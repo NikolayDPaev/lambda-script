@@ -29,3 +29,7 @@ Better highlighting for functions
 ### 0.0.4
 Added support for \n
 Added println as keyword
+
+### 0.0.5
+
+Added keyword "as"
