@@ -33,3 +33,8 @@ Added println as keyword
 ### 0.0.5
 
 Added keyword "as"
+
+### 0.0.6
+
+Added highlighting for import aliases
+More appropriate scope mappings assigned to the tokens
