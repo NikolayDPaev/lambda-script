@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell,
+    cell::{RefCell, Cell},
     cmp::Ordering,
     fmt::{self, Formatter},
     rc::Rc,
@@ -29,7 +29,7 @@ pub enum Expression {
     Ident(u32),
     Thunk {
         expr: RefCell<Rc<Expression>>,
-        memoized: RefCell<bool>,
+        memoized: Cell<bool>,
         #[educe(Debug(method = "fmt"))]
         env: HashTrieMap<u32, Rc<Expression>>,
         #[educe(Debug(ignore))]

@@ -4,7 +4,7 @@ mod operations;
 mod tests;
 
 use rpds::HashTrieMap;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::rc::Rc;
 
@@ -31,7 +31,7 @@ macro_rules! new_thunk {
             // That is why we must preserve the context.
             Expression::Value(Value::Function { .. }) => Rc::new(Expression::Thunk {
                 expr: RefCell::new($expr.clone()),
-                memoized: RefCell::new(false),
+                memoized: Cell::new(false),
                 env: $assignments.clone(),
                 pure: $pure,
             }),
@@ -39,7 +39,7 @@ macro_rules! new_thunk {
             Expression::Thunk { .. } | Expression::Value(..) => $expr.clone(),
             _ => Rc::new(Expression::Thunk {
                 expr: RefCell::new($expr.clone()),
-                memoized: RefCell::new(false),
+                memoized: Cell::new(false),
                 env: $assignments.clone(),
                 pure: $pure,
             }),
@@ -87,9 +87,7 @@ where
         let mut thunk_for_memo = None;
         loop {
             // if the expression is a thunk, then remember it for later memoization
-            if matches!(expression.as_ref(), Expression::Thunk { .. })
-                && thunk_for_memo.is_none()
-            {
+            if matches!(expression.as_ref(), Expression::Thunk { .. }) && thunk_for_memo.is_none() {
                 thunk_for_memo = Some(expression.clone());
             }
             if let Expression::Value(value) = expression.as_ref() {
@@ -102,7 +100,7 @@ where
                             ..
                         } => {
                             inside_refcell.replace(expression.clone());
-                            memoized.replace(true);
+                            memoized.set(true);
                         }
                         _ => unreachable!(),
                     }
@@ -201,7 +199,7 @@ where
                 pure,
             } => {
                 // if it is memoized, then return the expression
-                if *memoized.borrow() {
+                if memoized.get() {
                     expr.borrow().clone()
                 } else {
                     let inside_rc = expr.replace(Rc::new(Expression::Value(Value::Nil)));
@@ -215,7 +213,7 @@ where
                             // if expr is not a value, then evaluate it and memoize the result, by replacing the old one
                             let result =
                                 self.eval_expression(inside_rc.clone(), env.clone(), *pure)?;
-                            memoized.replace(true);
+                            memoized.set(true);
                             expr.replace(result.clone());
 
                             result
